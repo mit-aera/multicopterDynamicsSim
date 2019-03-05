@@ -15,15 +15,15 @@ class MulticopterDynamics{
                             const Eigen::Matrix3d & vehicleInertia, 
                             const Eigen::Matrix3d & aeroMomentCoefficient,
                             double dragCoefficient,
-                            double angAccelProcessNoiseAutoCorrelation,
-                            double linAccelProcessNoiseAutoCorrelation,
+                            double momentProcessNoiseAutoCorrelation,
+                            double forceProcessNoiseAutoCorrelation,
                             const Eigen::Vector3d & gravity);
         MulticopterDynamics(int numCopter);
         void setVehicleProperties(double vehicleMass, const Eigen::Matrix3d & vehicleInertia, 
                                             const Eigen::Matrix3d & aeroMomentCoefficient,
                                             double dragCoefficient,
-                                            double angAccelProcessNoiseAutoCorrelation,
-                                            double linAccelProcessNoiseAutoCorrelation);
+                                            double momentProcessNoiseAutoCorrelation,
+                                            double forceProcessNoiseAutoCorrelation);
         void setGravityVector(const Eigen::Vector3d & gravity);
         void setMotorFrame(const Eigen::Isometry3d & motorFrame, int motorDirection, int motorIndex);
         void setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
@@ -56,6 +56,8 @@ class MulticopterDynamics{
         // Number of rotors
         int numCopter_;
 
+        // Motor properties
+
         // Transform from motor to vehicle (c.o.g.) frame
         // Motor frame must have prop spinning around z-axis with positive thrust in positive z axis direction
         std::vector<Eigen::Isometry3d> motorFrame_;
@@ -69,13 +71,15 @@ class MulticopterDynamics{
         std::vector<double> maxMotorSpeed_;
         std::vector<double> minMotorSpeed_;
 
+        // Vehicle properties
         double dragCoefficient_;
         Eigen::Matrix3d aeroMomentCoefficient_;
         double vehicleMass_;
         Eigen::Matrix3d vehicleInertia_;
-        double angAccelProcessNoiseAutoCorrelation_ = 0.; // N^2s
-        double linAccelProcessNoiseAutoCorrelation_ = 0.; // (Nm)^2s
+        double momentProcessNoiseAutoCorrelation_ = 0.; // N^2s
+        double forceProcessNoiseAutoCorrelation_ = 0.; // (Nm)^2s
 
+        // Std normal RNG
         std::default_random_engine randomNumberGenerator_;
         std::normal_distribution<double> standardNormalDistribution_ = std::normal_distribution<double>(0.0,1.0);
 
@@ -89,6 +93,10 @@ class MulticopterDynamics{
         Eigen::Vector3d angularVelocity_ = Eigen::Vector3d::Zero();
         Eigen::Quaterniond attitude_ = Eigen::Quaterniond::Identity();
 
+        /* Vehicle stochastic force vector (in world frame) is maintained
+        for accelerometer output, since it must include the same
+        random linear acceleration noise as used for dynamics integration*/
+        Eigen::Vector3d stochForce_ = Eigen::Vector3d::Zero();
 
         Eigen::Vector3d getThrust(const std::vector<double> & motorSpeed);
         Eigen::Vector3d getControlMoment(const std::vector<double> & motorSpeed);

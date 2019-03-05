@@ -8,8 +8,8 @@ double motorTimeConstant, double vehicleMass,
 const Eigen::Matrix3d & vehicleInertia, 
 const Eigen::Matrix3d & aeroMomentCoefficient,
 double dragCoefficient,
-double angAccelProcessNoiseAutoCorrelation,
-double linAccelProcessNoiseAutoCorrelation,
+double momentProcessNoiseAutoCorrelation,
+double forceProcessNoiseAutoCorrelation,
 const Eigen::Vector3d & gravity
 )
 : numCopter_(numCopter)
@@ -37,8 +37,8 @@ const Eigen::Vector3d & gravity
     vehicleInertia_ = vehicleInertia;
     aeroMomentCoefficient_ = aeroMomentCoefficient;
     dragCoefficient_ = dragCoefficient;
-    angAccelProcessNoiseAutoCorrelation_ = angAccelProcessNoiseAutoCorrelation;
-    linAccelProcessNoiseAutoCorrelation_ = linAccelProcessNoiseAutoCorrelation;
+    momentProcessNoiseAutoCorrelation_ = momentProcessNoiseAutoCorrelation;
+    forceProcessNoiseAutoCorrelation_ = forceProcessNoiseAutoCorrelation;
 
     gravity_ = gravity;
 }
@@ -73,14 +73,14 @@ void MulticopterDynamics::setVehicleProperties(double vehicleMass,
                                             const Eigen::Matrix3d & vehicleInertia, 
                                             const Eigen::Matrix3d & aeroMomentCoefficient,
                                             double dragCoefficient,
-                                            double angAccelProcessNoiseAutoCorrelation,
-                                            double linAccelProcessNoiseAutoCorrelation){
+                                            double momentProcessNoiseAutoCorrelation,
+                                            double forceProcessNoiseAutoCorrelation){
     vehicleMass_ = vehicleMass;
     vehicleInertia_ = vehicleInertia;
     aeroMomentCoefficient_ = aeroMomentCoefficient;
     dragCoefficient_ = dragCoefficient;
-    angAccelProcessNoiseAutoCorrelation_ = angAccelProcessNoiseAutoCorrelation;
-    linAccelProcessNoiseAutoCorrelation_ = linAccelProcessNoiseAutoCorrelation;
+    momentProcessNoiseAutoCorrelation_ = momentProcessNoiseAutoCorrelation;
+    forceProcessNoiseAutoCorrelation_ = forceProcessNoiseAutoCorrelation;
 }
 
 void MulticopterDynamics::setGravityVector(const Eigen::Vector3d & gravity){
@@ -180,17 +180,9 @@ Eigen::Vector3d MulticopterDynamics::getVehicleAngularVelocity(void){
 
 // In body frame
 Eigen::Vector3d MulticopterDynamics::getVehicleSpecificForce(void){
-    Eigen::Vector3d specificForce = Eigen::Vector3d::Zero();
-
-    for (int indx = 0; indx < numCopter_; indx++){
-        if(motorSpeed_.at(indx) >= 0.){
-
-            Eigen::Vector3d motorThrust(0.,0.,std::copysign(pow(motorSpeed_.at(indx),2.),motorSpeed_.at(indx))*thrustCoefficient_.at(indx));
-            specificForce += motorFrame_.at(indx).linear()*motorThrust;
-        }
-    }
-
-    specificForce += getDragForce(velocity_);
+    Eigen::Vector3d specificForce = getThrust(motorSpeed_);
+    specificForce += attitude_.inverse()*getDragForce(velocity_)/vehicleMass_;
+    specificForce += attitude_.inverse()*stochForce_/vehicleMass_;
     
     return specificForce;
 }
@@ -200,7 +192,7 @@ Eigen::Vector3d MulticopterDynamics::getThrust(const std::vector<double> & motor
 
     for (int indx = 0; indx < numCopter_; indx++){
 
-        Eigen::Vector3d motorThrust(0.,0.,std::copysign(pow(motorSpeed.at(indx),2.),motorSpeed.at(indx))*thrustCoefficient_.at(indx));
+        Eigen::Vector3d motorThrust(0.,0.,fabs(motorSpeed.at(indx))*motorSpeed.at(indx)*thrustCoefficient_.at(indx));
         thrust += motorFrame_.at(indx).linear()*motorThrust;
     }
 
@@ -212,11 +204,11 @@ Eigen::Vector3d MulticopterDynamics::getControlMoment(const std::vector<double> 
 
     for (int indx = 0; indx < numCopter_; indx++){
         // Moment due to thrust
-        Eigen::Vector3d motorThrust(0.,0.,std::copysign(pow(motorSpeed.at(indx),2.),motorSpeed.at(indx))*thrustCoefficient_.at(indx));
+        Eigen::Vector3d motorThrust(0.,0.,fabs(motorSpeed.at(indx))*motorSpeed.at(indx)*thrustCoefficient_.at(indx));
         controlMoment += motorFrame_.at(indx).translation().cross(motorFrame_.at(indx).linear()*motorThrust);
 
         // Moment due to torque
-        Eigen::Vector3d motorTorque(0.,0.,motorDirection_.at(indx)*std::copysign(pow(motorSpeed.at(indx),2.),motorSpeed.at(indx))*torqueCoefficient_.at(indx));
+        Eigen::Vector3d motorTorque(0.,0.,motorDirection_.at(indx)*fabs(motorSpeed.at(indx))*motorSpeed.at(indx)*torqueCoefficient_.at(indx));
         controlMoment += motorFrame_.at(indx).linear()*motorTorque;
     }
 
@@ -239,19 +231,17 @@ void MulticopterDynamics::proceedState_ExplicitEuler(double dt_secs, const std::
     Eigen::Vector3d angularVelocity = angularVelocity_;
     Eigen::Quaterniond attitude = attitude_;
 
-    Eigen::Vector3d stochForce;
-    stochForce << sqrt(linAccelProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
-                  sqrt(linAccelProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
-                  sqrt(linAccelProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_);
+    stochForce_ /= sqrt(dt_secs);
+
     Eigen::Vector3d stochMoment;
-    stochMoment << sqrt(angAccelProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
-                   sqrt(angAccelProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
-                   sqrt(angAccelProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_);
+    stochMoment << sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
+                   sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
+                   sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_);
 
     std::vector<double> motorSpeedDer(numCopter_);
     getMotorSpeedDerivative(motorSpeedDer,motorSpeed,motorSpeedCommand);
     Eigen::Vector3d positionDer = velocity;
-    Eigen::Vector3d velocityDer = getVelocityDerivative(attitude,stochForce,velocity,motorSpeed);
+    Eigen::Vector3d velocityDer = getVelocityDerivative(attitude,stochForce_,velocity,motorSpeed);
     Eigen::Vector4d attitudeDer = getAttitudeDerivative(attitude,angularVelocity);
     Eigen::Vector3d angularVelocityDer = getAngularVelocityDerivative(motorSpeed,angularVelocity,stochMoment);
 
@@ -263,6 +253,10 @@ void MulticopterDynamics::proceedState_ExplicitEuler(double dt_secs, const std::
     attitude_.coeffs() = attitude.coeffs() + attitudeDer*dt_secs;
 
     attitude_.normalize();
+
+    stochForce_ << sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
+                   sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
+                   sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_);
 }
 
 void MulticopterDynamics::proceedState_RK4(double dt_secs, const std::vector<double> & motorSpeedCommand){
@@ -273,15 +267,19 @@ void MulticopterDynamics::proceedState_RK4(double dt_secs, const std::vector<dou
     Eigen::Vector3d angularVelocity = angularVelocity_;
     Eigen::Quaterniond attitude = attitude_;
 
-    Eigen::Vector3d stochForce = Eigen::Vector3d::Zero();
-    Eigen::Vector3d stochMoment = Eigen::Vector3d::Zero();
+    stochForce_ /= sqrt(dt_secs);
+
+    Eigen::Vector3d stochMoment;
+    stochMoment << sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
+                   sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
+                   sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_);
 
     // k1
     std::vector<double> motorSpeedDer(numCopter_);
     getMotorSpeedDerivative(motorSpeedDer,motorSpeed_,motorSpeedCommand);
     vectorScalarProd(motorSpeedDer,motorSpeedDer,dt_secs);
     Eigen::Vector3d positionDer = dt_secs*velocity_;
-    Eigen::Vector3d velocityDer = dt_secs*getVelocityDerivative(attitude_,stochForce,velocity_,motorSpeed_);
+    Eigen::Vector3d velocityDer = dt_secs*getVelocityDerivative(attitude_,stochForce_,velocity_,motorSpeed_);
     Eigen::Vector4d attitudeDer = dt_secs*getAttitudeDerivative(attitude_,angularVelocity_);
     Eigen::Vector3d angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeed_,angularVelocity_,stochMoment);
 
@@ -305,7 +303,7 @@ void MulticopterDynamics::proceedState_RK4(double dt_secs, const std::vector<dou
     getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommand);
     vectorScalarProd(motorSpeedDer, motorSpeedDer, dt_secs);
     positionDer = dt_secs*(velocity_ + 0.5*velocityDer);
-    velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce,(velocity_ + 0.5*velocityDer), motorSpeedIntermediate);
+    velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce_,(velocity_ + 0.5*velocityDer), motorSpeedIntermediate);
     attitudeDer = dt_secs*getAttitudeDerivative(attitudeIntermediate,(angularVelocity_ + 0.5*angularVelocityDer));
     angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeedIntermediate,(angularVelocity_ + 0.5*angularVelocityDer),stochMoment);
 
@@ -326,7 +324,7 @@ void MulticopterDynamics::proceedState_RK4(double dt_secs, const std::vector<dou
     getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommand);
     vectorScalarProd(motorSpeedDer, motorSpeedDer, dt_secs);
     positionDer = dt_secs*(velocity_ + 0.5*velocityDer);
-    velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce,(velocity_ + 0.5*velocityDer), motorSpeedIntermediate);
+    velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce_,(velocity_ + 0.5*velocityDer), motorSpeedIntermediate);
     attitudeDer = dt_secs*getAttitudeDerivative(attitudeIntermediate,(angularVelocity_ + 0.5*angularVelocityDer));
     angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeedIntermediate,(angularVelocity_ + 0.5*angularVelocityDer),stochMoment);
 
@@ -347,7 +345,7 @@ void MulticopterDynamics::proceedState_RK4(double dt_secs, const std::vector<dou
     getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommand);
     vectorScalarProd(motorSpeedDer, motorSpeedDer, dt_secs);
     positionDer = dt_secs*(velocity_ + velocityDer);
-    velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce,(velocity_ + velocityDer), motorSpeedIntermediate);
+    velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce_,(velocity_ + velocityDer), motorSpeedIntermediate);
     attitudeDer = dt_secs*getAttitudeDerivative(attitudeIntermediate,(angularVelocity_ + angularVelocityDer));
     angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeedIntermediate,(angularVelocity_ + angularVelocityDer),stochMoment);
 
@@ -359,6 +357,10 @@ void MulticopterDynamics::proceedState_RK4(double dt_secs, const std::vector<dou
     attitude_.coeffs() = attitude.coeffs() + attitudeDer*(1./6.);
     attitude_.normalize();
     angularVelocity_ = angularVelocity + angularVelocityDer*(1./6.);
+
+    stochForce_ << sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
+                   sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
+                   sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_);
 }
 
 void MulticopterDynamics::vectorAffineOp(const std::vector<double> & vec1, const std::vector<double> & vec2,
@@ -394,13 +396,11 @@ Eigen::Vector3d MulticopterDynamics::getVelocityDerivative(const Eigen::Quaterni
 }
 
 Eigen::Vector4d MulticopterDynamics::getAttitudeDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & angularVelocity){
-    Eigen::MatrixXd quatProduct(4,3);
-    quatProduct <<  attitude.w(), -attitude.z(),  attitude.y(),
-                    attitude.z(),  attitude.w(), -attitude.x(),
-                   -attitude.y(),  attitude.x(),  attitude.w(),
-                   -attitude.x(), -attitude.y(), -attitude.z();
+    Eigen::Quaterniond angularVelocityQuad;
+    angularVelocityQuad.w() = 0;
+    angularVelocityQuad.vec() = angularVelocity;
 
-    return (0.5*quatProduct*angularVelocity);
+    return (0.5*(attitude*angularVelocityQuad).coeffs());
 }
 
 Eigen::Vector3d MulticopterDynamics::getAngularVelocityDerivative(const std::vector<double> & motorSpeed,
