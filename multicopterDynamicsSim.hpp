@@ -4,12 +4,11 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <vector>
+#include "inertialMeasurementSim.hpp"
 
-
-
-class MulticopterDynamics{
+class MulticopterDynamicsSim{
     public:
-        MulticopterDynamics(int numCopter, double thrustCoefficient, double torqueCoefficient,
+        MulticopterDynamicsSim(int numCopter, double thrustCoefficient, double torqueCoefficient,
                             double minMotorSpeed, double maxMotorSpeed,
                             double motorTimeConstant, double vehicleMass,
                             const Eigen::Matrix3d & vehicleInertia, 
@@ -18,7 +17,7 @@ class MulticopterDynamics{
                             double momentProcessNoiseAutoCorrelation,
                             double forceProcessNoiseAutoCorrelation,
                             const Eigen::Vector3d & gravity);
-        MulticopterDynamics(int numCopter);
+        MulticopterDynamicsSim(int numCopter);
         void setVehicleProperties(double vehicleMass, const Eigen::Matrix3d & vehicleInertia, 
                                             const Eigen::Matrix3d & aeroMomentCoefficient,
                                             double dragCoefficient,
@@ -48,10 +47,15 @@ class MulticopterDynamics{
         Eigen::Quaterniond getVehicleAttitude(void);
         Eigen::Vector3d getVehicleVelocity(void);
         Eigen::Vector3d getVehicleAngularVelocity(void);
-        Eigen::Vector3d getVehicleSpecificForce(void);
+        
         void proceedState_ExplicitEuler(double dt_secs, const std::vector<double> & motorSpeedCommand);
         void proceedState_RK4(double dt_secs, const std::vector<double> & motorSpeedCommand);
 
+        void getIMUMeasurement(Eigen::Vector3d & accOutput, Eigen::Vector3d & gyroOutput);
+
+        // IMU
+        inertialMeasurementSim imu_ = inertialMeasurementSim(0.,0.,0.,0.);
+        
     private:
         // Number of rotors
         int numCopter_;
@@ -102,6 +106,8 @@ class MulticopterDynamics{
         Eigen::Vector3d getControlMoment(const std::vector<double> & motorSpeed);
         Eigen::Vector3d getAeroMoment(const Eigen::Vector3d & angularVelocity);
         Eigen::Vector3d getDragForce(const Eigen::Vector3d & velocity);
+        Eigen::Vector3d getVehicleSpecificForce(void);
+
         void getMotorSpeedDerivative(std::vector<double> & motorSpeedDer,
                                                   const std::vector<double> & motorSpeed,
                                                   const std::vector<double> & motorSpeedCommand);

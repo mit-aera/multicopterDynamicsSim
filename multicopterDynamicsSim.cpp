@@ -1,7 +1,7 @@
 #include "multicopterDynamicsSim.hpp"
 #include <iostream>
 
-MulticopterDynamics::MulticopterDynamics(int numCopter,
+MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter,
 double thrustCoefficient, double torqueCoefficient,
 double minMotorSpeed, double maxMotorSpeed,
 double motorTimeConstant, double vehicleMass,
@@ -43,7 +43,7 @@ const Eigen::Vector3d & gravity
     gravity_ = gravity;
 }
 
-MulticopterDynamics::MulticopterDynamics(int numCopter)
+MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter)
 : numCopter_(numCopter)
 , motorFrame_(numCopter)
 , motorDirection_(numCopter)
@@ -69,7 +69,7 @@ MulticopterDynamics::MulticopterDynamics(int numCopter)
     gravity_ << 0.,0.,9.81;
 }
 
-void MulticopterDynamics::setVehicleProperties(double vehicleMass,
+void MulticopterDynamicsSim::setVehicleProperties(double vehicleMass,
                                             const Eigen::Matrix3d & vehicleInertia, 
                                             const Eigen::Matrix3d & aeroMomentCoefficient,
                                             double dragCoefficient,
@@ -83,16 +83,16 @@ void MulticopterDynamics::setVehicleProperties(double vehicleMass,
     forceProcessNoiseAutoCorrelation_ = forceProcessNoiseAutoCorrelation;
 }
 
-void MulticopterDynamics::setGravityVector(const Eigen::Vector3d & gravity){
+void MulticopterDynamicsSim::setGravityVector(const Eigen::Vector3d & gravity){
     gravity_ = gravity;
 }
 
-void MulticopterDynamics::setMotorFrame(const Eigen::Isometry3d & motorFrame, int motorDirection, int motorIndex){
+void MulticopterDynamicsSim::setMotorFrame(const Eigen::Isometry3d & motorFrame, int motorDirection, int motorIndex){
     motorFrame_.at(motorIndex) = motorFrame;
     motorDirection_.at(motorIndex) = motorDirection;
 }
 
-void MulticopterDynamics::setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
+void MulticopterDynamicsSim::setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
                                              double minMotorSpeed, double maxMotorSpeed, int motorIndex){
     thrustCoefficient_.at(motorIndex) = thrustCoefficient;
     torqueCoefficient_.at(motorIndex) = torqueCoefficient;
@@ -101,7 +101,7 @@ void MulticopterDynamics::setMotorProperties(double thrustCoefficient, double to
     minMotorSpeed_.at(motorIndex) = minMotorSpeed;
 }
 
-void MulticopterDynamics::setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
+void MulticopterDynamicsSim::setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
                                              double minMotorSpeed, double maxMotorSpeed){
     for (int motorIndex = 0; motorIndex < numCopter_; motorIndex++){
         setMotorProperties(thrustCoefficient, torqueCoefficient, motorTimeConstant,
@@ -109,23 +109,23 @@ void MulticopterDynamics::setMotorProperties(double thrustCoefficient, double to
     }
 }
 
-void MulticopterDynamics::setMotorSpeed(double motorSpeed, int motorIndex){
+void MulticopterDynamicsSim::setMotorSpeed(double motorSpeed, int motorIndex){
     motorSpeed_.at(motorIndex) = motorSpeed;
 }
 
-void MulticopterDynamics::setMotorSpeed(double motorSpeed){
+void MulticopterDynamicsSim::setMotorSpeed(double motorSpeed){
     for (int motorIndex = 0; motorIndex < numCopter_; motorIndex++){
         setMotorSpeed(motorSpeed, motorIndex);
     }
 }
 
-void MulticopterDynamics::resetMotorSpeeds(void){
+void MulticopterDynamicsSim::resetMotorSpeeds(void){
     for (int indx = 0; indx < numCopter_; indx++){
         motorSpeed_.at(indx) = 0.;
     }
 }
 
-void MulticopterDynamics::setVehiclePosition(const Eigen::Vector3d & position,
+void MulticopterDynamicsSim::setVehiclePosition(const Eigen::Vector3d & position,
                                              const Eigen::Quaterniond & attitude){
     position_ = position;
     attitude_ = attitude;
@@ -136,7 +136,7 @@ void MulticopterDynamics::setVehiclePosition(const Eigen::Vector3d & position,
     resetMotorSpeeds();
 }
 
-void MulticopterDynamics::setVehicleState(const Eigen::Vector3d & position,
+void MulticopterDynamicsSim::setVehicleState(const Eigen::Vector3d & position,
                                               const Eigen::Vector3d & velocity,
                                               const Eigen::Vector3d & angularVelocity,
                                               const Eigen::Quaterniond & attitude,
@@ -150,7 +150,7 @@ void MulticopterDynamics::setVehicleState(const Eigen::Vector3d & position,
     }
 }
 
-void MulticopterDynamics::getVehicleState(Eigen::Vector3d & position,
+void MulticopterDynamicsSim::getVehicleState(Eigen::Vector3d & position,
                                           Eigen::Vector3d & velocity,
                                           Eigen::Vector3d & angularVelocity,
                                           Eigen::Quaterniond & attitude,
@@ -162,24 +162,24 @@ void MulticopterDynamics::getVehicleState(Eigen::Vector3d & position,
     motorSpeed = motorSpeed_;
 }
 
-Eigen::Vector3d MulticopterDynamics::getVehiclePosition(void){
+Eigen::Vector3d MulticopterDynamicsSim::getVehiclePosition(void){
     return position_;
 }
 
-Eigen::Quaterniond MulticopterDynamics::getVehicleAttitude(void){
+Eigen::Quaterniond MulticopterDynamicsSim::getVehicleAttitude(void){
     return attitude_;
 }
 
-Eigen::Vector3d MulticopterDynamics::getVehicleVelocity(void){
+Eigen::Vector3d MulticopterDynamicsSim::getVehicleVelocity(void){
     return velocity_;
 }
 
-Eigen::Vector3d MulticopterDynamics::getVehicleAngularVelocity(void){
+Eigen::Vector3d MulticopterDynamicsSim::getVehicleAngularVelocity(void){
     return angularVelocity_;
 }
 
 // In body frame
-Eigen::Vector3d MulticopterDynamics::getVehicleSpecificForce(void){
+Eigen::Vector3d MulticopterDynamicsSim::getVehicleSpecificForce(void){
     Eigen::Vector3d specificForce = getThrust(motorSpeed_);
     specificForce += attitude_.inverse()*getDragForce(velocity_)/vehicleMass_;
     specificForce += attitude_.inverse()*stochForce_/vehicleMass_;
@@ -187,7 +187,7 @@ Eigen::Vector3d MulticopterDynamics::getVehicleSpecificForce(void){
     return specificForce;
 }
 
-Eigen::Vector3d MulticopterDynamics::getThrust(const std::vector<double> & motorSpeed){
+Eigen::Vector3d MulticopterDynamicsSim::getThrust(const std::vector<double> & motorSpeed){
     Eigen::Vector3d thrust = Eigen::Vector3d::Zero();
 
     for (int indx = 0; indx < numCopter_; indx++){
@@ -199,7 +199,7 @@ Eigen::Vector3d MulticopterDynamics::getThrust(const std::vector<double> & motor
     return thrust;
 }
 
-Eigen::Vector3d MulticopterDynamics::getControlMoment(const std::vector<double> & motorSpeed){
+Eigen::Vector3d MulticopterDynamicsSim::getControlMoment(const std::vector<double> & motorSpeed){
     Eigen::Vector3d controlMoment = Eigen::Vector3d::Zero();
 
     for (int indx = 0; indx < numCopter_; indx++){
@@ -215,15 +215,19 @@ Eigen::Vector3d MulticopterDynamics::getControlMoment(const std::vector<double> 
     return controlMoment;
 }
 
-Eigen::Vector3d MulticopterDynamics::getAeroMoment(const Eigen::Vector3d & angularVelocity){
+Eigen::Vector3d MulticopterDynamicsSim::getAeroMoment(const Eigen::Vector3d & angularVelocity){
     return (-angularVelocity.norm()*aeroMomentCoefficient_*angularVelocity);
 }
 
-Eigen::Vector3d MulticopterDynamics::getDragForce(const Eigen::Vector3d & velocity){
+Eigen::Vector3d MulticopterDynamicsSim::getDragForce(const Eigen::Vector3d & velocity){
     return (-dragCoefficient_*velocity.norm()*velocity);
 }
 
-void MulticopterDynamics::proceedState_ExplicitEuler(double dt_secs, const std::vector<double> & motorSpeedCommand){
+void MulticopterDynamicsSim::getIMUMeasurement(Eigen::Vector3d & accOutput, Eigen::Vector3d & gyroOutput){
+    imu_.getMeasurement(accOutput, gyroOutput, getVehicleSpecificForce(), angularVelocity_);
+}
+
+void MulticopterDynamicsSim::proceedState_ExplicitEuler(double dt_secs, const std::vector<double> & motorSpeedCommand){
 
     std::vector<double> motorSpeed(motorSpeed_);
     Eigen::Vector3d position = position_;
@@ -257,9 +261,11 @@ void MulticopterDynamics::proceedState_ExplicitEuler(double dt_secs, const std::
     stochForce_ << sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
                    sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
                    sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_);
+
+    imu_.proceedBiasDynamics(dt_secs);
 }
 
-void MulticopterDynamics::proceedState_RK4(double dt_secs, const std::vector<double> & motorSpeedCommand){
+void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<double> & motorSpeedCommand){
 
     std::vector<double> motorSpeed(motorSpeed_);
     Eigen::Vector3d position = position_;
@@ -361,27 +367,29 @@ void MulticopterDynamics::proceedState_RK4(double dt_secs, const std::vector<dou
     stochForce_ << sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
                    sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
                    sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_);
+
+    imu_.proceedBiasDynamics(dt_secs);
 }
 
-void MulticopterDynamics::vectorAffineOp(const std::vector<double> & vec1, const std::vector<double> & vec2,
+void MulticopterDynamicsSim::vectorAffineOp(const std::vector<double> & vec1, const std::vector<double> & vec2,
                                          std::vector<double> & vec3, double val){
     // vec3 = vec1 + val*vec2
     std::transform(vec1.begin(), vec1.end(), vec2.begin(), vec3.begin(), [val](const double & vec1val, const double & vec2val)->double{return (vec1val + val*vec2val);});
 }
 
-void MulticopterDynamics::vectorBoundOp(const std::vector<double> & vec1, std::vector<double> & vec2,
+void MulticopterDynamicsSim::vectorBoundOp(const std::vector<double> & vec1, std::vector<double> & vec2,
                                          const std::vector<double> &  minvec, const std::vector<double> & maxvec){
     // vec2 = max(minvalue, min(maxvalue, vec1))
     std::transform(vec1.begin(), vec1.end(), maxvec.begin(), vec2.begin(), [](const double & vec1val, const double & maxvalue)->double{return fmin(vec1val,maxvalue);});
     std::transform(vec2.begin(), vec2.end(), minvec.begin(), vec2.begin(), [](const double & vec2val, const double & minvalue)->double{return fmax(vec2val,minvalue);});
 }
 
-void MulticopterDynamics::vectorScalarProd(const std::vector<double> & vec1, std::vector<double> & vec2, double val){
+void MulticopterDynamicsSim::vectorScalarProd(const std::vector<double> & vec1, std::vector<double> & vec2, double val){
     // vec2 = val*vec1
     std::transform(vec1.begin(), vec1.end(), vec2.begin(), [val](const double & vec1val){return vec1val*val;});
 }
 
-void MulticopterDynamics::getMotorSpeedDerivative(std::vector<double> & motorSpeedDer,
+void MulticopterDynamicsSim::getMotorSpeedDerivative(std::vector<double> & motorSpeedDer,
                                                   const std::vector<double> & motorSpeed,
                                                   const std::vector<double> & motorSpeedCommand){
     for (int indx = 0; indx < numCopter_; indx++){
@@ -389,13 +397,13 @@ void MulticopterDynamics::getMotorSpeedDerivative(std::vector<double> & motorSpe
     }
 }
 
-Eigen::Vector3d MulticopterDynamics::getVelocityDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & stochForce,
+Eigen::Vector3d MulticopterDynamicsSim::getVelocityDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & stochForce,
                                         const Eigen::Vector3d & velocity, const std::vector<double> & motorSpeed){
 
     return (gravity_ + (attitude*getThrust(motorSpeed) + getDragForce(velocity) + stochForce)/vehicleMass_);
 }
 
-Eigen::Vector4d MulticopterDynamics::getAttitudeDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & angularVelocity){
+Eigen::Vector4d MulticopterDynamicsSim::getAttitudeDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & angularVelocity){
     Eigen::Quaterniond angularVelocityQuad;
     angularVelocityQuad.w() = 0;
     angularVelocityQuad.vec() = angularVelocity;
@@ -403,7 +411,7 @@ Eigen::Vector4d MulticopterDynamics::getAttitudeDerivative(const Eigen::Quaterni
     return (0.5*(attitude*angularVelocityQuad).coeffs());
 }
 
-Eigen::Vector3d MulticopterDynamics::getAngularVelocityDerivative(const std::vector<double> & motorSpeed,
+Eigen::Vector3d MulticopterDynamicsSim::getAngularVelocityDerivative(const std::vector<double> & motorSpeed,
                                 const Eigen::Vector3d & angularVelocity, const Eigen::Vector3d & stochMoment){
 
     return (vehicleInertia_.inverse()*(getControlMoment(motorSpeed) + getAeroMoment(angularVelocity) + stochMoment 
