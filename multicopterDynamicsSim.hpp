@@ -26,9 +26,9 @@ class MulticopterDynamicsSim{
         void setGravityVector(const Eigen::Vector3d & gravity);
         void setMotorFrame(const Eigen::Isometry3d & motorFrame, int motorDirection, int motorIndex);
         void setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
-                                             double minMotorSpeed, double maxMotorSpeed, int motorIndex);
+                                             double minMotorSpeed, double maxMotorSpeed, double rotationalInertia, int motorIndex);
         void setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
-                                             double minMotorSpeed, double maxMotorSpeed);
+                                             double minMotorSpeed, double maxMotorSpeed, double rotationalInertia);
         void setMotorSpeed(double motorSpeed, int motorIndex);
         void setMotorSpeed(double motorSpeed);
         void resetMotorSpeeds(void);
@@ -63,15 +63,21 @@ class MulticopterDynamicsSim{
         // Motor properties
 
         // Transform from motor to vehicle (c.o.g.) frame
-        // Motor frame must have prop spinning around z-axis with positive thrust in positive z axis direction
+        /* Motor frame must have prop spinning around z-axis such that
+         a positive motor speed corresponds to a positive thrust in 
+         positive motor z-axis direction.*/
         std::vector<Eigen::Isometry3d> motorFrame_;
 
-        // -1 if positive rotation rate corresponds to negative moment around motor z axis
+        /* +1 if positive motor speed corresponds to positive moment around the motor frame z-axis
+           -1 if positive motor speed corresponds to negative moment around the motor frame z-axis
+           i.e. -1 indicates a positive motor speed corresponds to a positive rotation rate around the motor z-axis
+        */
         std::vector<int> motorDirection_;
 
         std::vector<double> thrustCoefficient_;
         std::vector<double> torqueCoefficient_;
         std::vector<double> motorTimeConstant_;
+        std::vector<double> motorRotationalInertia_;
         std::vector<double> maxMotorSpeed_;
         std::vector<double> minMotorSpeed_;
 
@@ -103,7 +109,7 @@ class MulticopterDynamicsSim{
         Eigen::Vector3d stochForce_ = Eigen::Vector3d::Zero();
 
         Eigen::Vector3d getThrust(const std::vector<double> & motorSpeed);
-        Eigen::Vector3d getControlMoment(const std::vector<double> & motorSpeed);
+        Eigen::Vector3d getControlMoment(const std::vector<double> & motorSpeed, const std::vector<double> & motorAcceleration);
         Eigen::Vector3d getAeroMoment(const Eigen::Vector3d & angularVelocity);
         Eigen::Vector3d getDragForce(const Eigen::Vector3d & velocity);
         Eigen::Vector3d getVehicleSpecificForce(void);
@@ -114,7 +120,7 @@ class MulticopterDynamicsSim{
         Eigen::Vector3d getVelocityDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & stochForce,
                                         const Eigen::Vector3d & velocity, const std::vector<double> & motorSpeed);
         Eigen::Vector3d getAngularVelocityDerivative(const std::vector<double> & motorSpeed,
-                                const Eigen::Vector3d & angularVelocity, const Eigen::Vector3d & stochMoment);
+            const std::vector<double>& motorAcceleration, const Eigen::Vector3d & angularVelocity, const Eigen::Vector3d & stochMoment);
         Eigen::Vector4d getAttitudeDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & angularVelocity);
         void vectorAffineOp(const std::vector<double> & vec1, const std::vector<double> & vec2, 
                                   std::vector<double> & vec3, double val);

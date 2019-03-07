@@ -15,6 +15,7 @@ const Eigen::Vector3d & gravity
 : numCopter_(numCopter)
 , motorFrame_(numCopter)
 , motorDirection_(numCopter)
+, motorRotationalInertia_(numCopter)
 , thrustCoefficient_(numCopter)
 , torqueCoefficient_(numCopter)
 , motorSpeed_(numCopter)
@@ -27,6 +28,7 @@ const Eigen::Vector3d & gravity
         thrustCoefficient_.at(indx) = thrustCoefficient;
         torqueCoefficient_.at(indx) = torqueCoefficient;
         motorTimeConstant_.at(indx) = motorTimeConstant;
+        motorRotationalInertia_.at(indx) = 0.;
         maxMotorSpeed_.at(indx) = maxMotorSpeed;
         minMotorSpeed_.at(indx) = minMotorSpeed;
         motorDirection_.at(indx) = 1;
@@ -47,6 +49,7 @@ MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter)
 : numCopter_(numCopter)
 , motorFrame_(numCopter)
 , motorDirection_(numCopter)
+, motorRotationalInertia_(numCopter)
 , thrustCoefficient_(numCopter)
 , torqueCoefficient_(numCopter)
 , motorSpeed_(numCopter)
@@ -59,6 +62,7 @@ MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter)
         thrustCoefficient_.at(indx) = 0.;
         torqueCoefficient_.at(indx) = 0.;
         motorTimeConstant_.at(indx) = 0.;
+        motorRotationalInertia_.at(indx) = 0.;
         maxMotorSpeed_.at(indx) = 0.;
         minMotorSpeed_.at(indx) = 0.;
         motorDirection_.at(indx) = 1;
@@ -93,19 +97,20 @@ void MulticopterDynamicsSim::setMotorFrame(const Eigen::Isometry3d & motorFrame,
 }
 
 void MulticopterDynamicsSim::setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
-                                             double minMotorSpeed, double maxMotorSpeed, int motorIndex){
+                                             double minMotorSpeed, double maxMotorSpeed, double rotationalInertia, int motorIndex){
     thrustCoefficient_.at(motorIndex) = thrustCoefficient;
     torqueCoefficient_.at(motorIndex) = torqueCoefficient;
     motorTimeConstant_.at(motorIndex) = motorTimeConstant;
     maxMotorSpeed_.at(motorIndex) = maxMotorSpeed;
     minMotorSpeed_.at(motorIndex) = minMotorSpeed;
+    motorRotationalInertia_.at(motorIndex) = rotationalInertia;
 }
 
 void MulticopterDynamicsSim::setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
-                                             double minMotorSpeed, double maxMotorSpeed){
+                                             double minMotorSpeed, double maxMotorSpeed, double rotationalInertia){
     for (int motorIndex = 0; motorIndex < numCopter_; motorIndex++){
         setMotorProperties(thrustCoefficient, torqueCoefficient, motorTimeConstant,
-                                             minMotorSpeed, maxMotorSpeed, motorIndex);
+                                             minMotorSpeed, maxMotorSpeed, rotationalInertia, motorIndex);
     }
 }
 
@@ -199,7 +204,7 @@ Eigen::Vector3d MulticopterDynamicsSim::getThrust(const std::vector<double> & mo
     return thrust;
 }
 
-Eigen::Vector3d MulticopterDynamicsSim::getControlMoment(const std::vector<double> & motorSpeed){
+Eigen::Vector3d MulticopterDynamicsSim::getControlMoment(const std::vector<double> & motorSpeed, const std::vector<double> & motorAcceleration){
     Eigen::Vector3d controlMoment = Eigen::Vector3d::Zero();
 
     for (int indx = 0; indx < numCopter_; indx++){
@@ -209,6 +214,7 @@ Eigen::Vector3d MulticopterDynamicsSim::getControlMoment(const std::vector<doubl
 
         // Moment due to torque
         Eigen::Vector3d motorTorque(0.,0.,motorDirection_.at(indx)*fabs(motorSpeed.at(indx))*motorSpeed.at(indx)*torqueCoefficient_.at(indx));
+        motorTorque(2) += motorDirection_.at(indx)*motorRotationalInertia_.at(indx)*motorAcceleration.at(indx);
         controlMoment += motorFrame_.at(indx).linear()*motorTorque;
     }
 
@@ -247,7 +253,7 @@ void MulticopterDynamicsSim::proceedState_ExplicitEuler(double dt_secs, const st
     Eigen::Vector3d positionDer = velocity;
     Eigen::Vector3d velocityDer = getVelocityDerivative(attitude,stochForce_,velocity,motorSpeed);
     Eigen::Vector4d attitudeDer = getAttitudeDerivative(attitude,angularVelocity);
-    Eigen::Vector3d angularVelocityDer = getAngularVelocityDerivative(motorSpeed,angularVelocity,stochMoment);
+    Eigen::Vector3d angularVelocityDer = getAngularVelocityDerivative(motorSpeed,motorSpeedDer,angularVelocity,stochMoment);
 
     vectorAffineOp(motorSpeed,motorSpeedDer,motorSpeed_,dt_secs);
     vectorBoundOp(motorSpeed_,motorSpeed_,minMotorSpeed_,maxMotorSpeed_);
@@ -283,11 +289,11 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
     // k1
     std::vector<double> motorSpeedDer(numCopter_);
     getMotorSpeedDerivative(motorSpeedDer,motorSpeed_,motorSpeedCommand);
-    vectorScalarProd(motorSpeedDer,motorSpeedDer,dt_secs);
     Eigen::Vector3d positionDer = dt_secs*velocity_;
     Eigen::Vector3d velocityDer = dt_secs*getVelocityDerivative(attitude_,stochForce_,velocity_,motorSpeed_);
     Eigen::Vector4d attitudeDer = dt_secs*getAttitudeDerivative(attitude_,angularVelocity_);
-    Eigen::Vector3d angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeed_,angularVelocity_,stochMoment);
+    Eigen::Vector3d angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeed_,motorSpeedDer,angularVelocity_,stochMoment);
+    vectorScalarProd(motorSpeedDer,motorSpeedDer,dt_secs);
 
     // x + 1/6*(k1)
     vectorAffineOp(motorSpeed,motorSpeedDer,motorSpeed,(1./6.));
@@ -307,11 +313,11 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
     attitudeIntermediate.normalize();
 
     getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommand);
-    vectorScalarProd(motorSpeedDer, motorSpeedDer, dt_secs);
     positionDer = dt_secs*(velocity_ + 0.5*velocityDer);
     velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce_,(velocity_ + 0.5*velocityDer), motorSpeedIntermediate);
     attitudeDer = dt_secs*getAttitudeDerivative(attitudeIntermediate,(angularVelocity_ + 0.5*angularVelocityDer));
-    angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeedIntermediate,(angularVelocity_ + 0.5*angularVelocityDer),stochMoment);
+    angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeedIntermediate,motorSpeedDer,(angularVelocity_ + 0.5*angularVelocityDer),stochMoment);
+    vectorScalarProd(motorSpeedDer, motorSpeedDer, dt_secs);
 
     // x + 1/6*(k1 + 2*k2)
     vectorAffineOp(motorSpeed,motorSpeedDer,motorSpeed,(1./3.));
@@ -328,11 +334,11 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
     attitudeIntermediate.normalize();
 
     getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommand);
-    vectorScalarProd(motorSpeedDer, motorSpeedDer, dt_secs);
     positionDer = dt_secs*(velocity_ + 0.5*velocityDer);
     velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce_,(velocity_ + 0.5*velocityDer), motorSpeedIntermediate);
     attitudeDer = dt_secs*getAttitudeDerivative(attitudeIntermediate,(angularVelocity_ + 0.5*angularVelocityDer));
-    angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeedIntermediate,(angularVelocity_ + 0.5*angularVelocityDer),stochMoment);
+    angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeedIntermediate,motorSpeedDer,(angularVelocity_ + 0.5*angularVelocityDer),stochMoment);
+    vectorScalarProd(motorSpeedDer, motorSpeedDer, dt_secs);
 
     // x + 1/6*(k1 + 2*k2 + 2*k3)
     vectorAffineOp(motorSpeed,motorSpeedDer,motorSpeed,(1./3.));
@@ -349,11 +355,11 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
     attitudeIntermediate.normalize();
 
     getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommand);
-    vectorScalarProd(motorSpeedDer, motorSpeedDer, dt_secs);
     positionDer = dt_secs*(velocity_ + velocityDer);
     velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce_,(velocity_ + velocityDer), motorSpeedIntermediate);
     attitudeDer = dt_secs*getAttitudeDerivative(attitudeIntermediate,(angularVelocity_ + angularVelocityDer));
-    angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeedIntermediate,(angularVelocity_ + angularVelocityDer),stochMoment);
+    angularVelocityDer = dt_secs*getAngularVelocityDerivative(motorSpeedIntermediate,motorSpeedDer,(angularVelocity_ + angularVelocityDer),stochMoment);
+    vectorScalarProd(motorSpeedDer, motorSpeedDer, dt_secs);
 
     // x + 1/6*(k1 + 2*k2 + 2*k3 + k4)
     vectorAffineOp(motorSpeed,motorSpeedDer,motorSpeed_,(1./6.));
@@ -412,8 +418,18 @@ Eigen::Vector4d MulticopterDynamicsSim::getAttitudeDerivative(const Eigen::Quate
 }
 
 Eigen::Vector3d MulticopterDynamicsSim::getAngularVelocityDerivative(const std::vector<double> & motorSpeed,
-                                const Eigen::Vector3d & angularVelocity, const Eigen::Vector3d & stochMoment){
+    const std::vector<double>& motorAcceleration, const Eigen::Vector3d & angularVelocity, const Eigen::Vector3d & stochMoment){
 
-    return (vehicleInertia_.inverse()*(getControlMoment(motorSpeed) + getAeroMoment(angularVelocity) + stochMoment 
-                                                       - angularVelocity.cross(vehicleInertia_*angularVelocity)));
+    Eigen::Vector3d angularMomentum = vehicleInertia_*angularVelocity;
+
+    for (int indx = 0; indx < numCopter_; indx++){
+        Eigen::Vector3d motorAngularMomentum = Eigen::Vector3d::Zero();
+        
+        motorAngularMomentum(2) = -1*motorDirection_.at(indx)*motorRotationalInertia_.at(indx)*motorSpeed.at(indx);
+
+        angularMomentum += motorFrame_.at(indx).linear()*motorAngularMomentum;
+    }
+
+    return (vehicleInertia_.inverse()*(getControlMoment(motorSpeed,motorAcceleration) + getAeroMoment(angularVelocity) + stochMoment 
+                                                       - angularVelocity.cross(angularMomentum)));
 }
