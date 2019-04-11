@@ -1,5 +1,6 @@
 #include "multicopterDynamicsSim.hpp"
 #include <iostream>
+#include <chrono>
 
 MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter,
 double thrustCoefficient, double torqueCoefficient,
@@ -23,6 +24,8 @@ const Eigen::Vector3d & gravity
 , maxMotorSpeed_(numCopter)
 , minMotorSpeed_(numCopter)
 {
+    randomNumberGenerator_.seed(std::chrono::system_clock::now().time_since_epoch().count());
+
     for (int indx = 0; indx < numCopter; indx++){
         motorFrame_.at(indx).setIdentity();
         thrustCoefficient_.at(indx) = thrustCoefficient;
@@ -57,6 +60,8 @@ MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter)
 , maxMotorSpeed_(numCopter)
 , minMotorSpeed_(numCopter)
 {
+    randomNumberGenerator_.seed(std::chrono::system_clock::now().time_since_epoch().count());
+
     for (int indx = 0; indx < numCopter; indx++){
         motorFrame_.at(indx).setIdentity();
         thrustCoefficient_.at(indx) = 0.;
@@ -235,6 +240,9 @@ void MulticopterDynamicsSim::getIMUMeasurement(Eigen::Vector3d & accOutput, Eige
 
 void MulticopterDynamicsSim::proceedState_ExplicitEuler(double dt_secs, const std::vector<double> & motorSpeedCommand){
 
+    std::vector<double> motorSpeedCommandBounded(numCopter_);
+    vectorBoundOp(motorSpeedCommand,motorSpeedCommandBounded,minMotorSpeed_,maxMotorSpeed_);
+
     std::vector<double> motorSpeed(motorSpeed_);
     Eigen::Vector3d position = position_;
     Eigen::Vector3d velocity = velocity_;
@@ -249,7 +257,7 @@ void MulticopterDynamicsSim::proceedState_ExplicitEuler(double dt_secs, const st
                    sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_);
 
     std::vector<double> motorSpeedDer(numCopter_);
-    getMotorSpeedDerivative(motorSpeedDer,motorSpeed,motorSpeedCommand);
+    getMotorSpeedDerivative(motorSpeedDer,motorSpeed,motorSpeedCommandBounded);
     Eigen::Vector3d positionDer = velocity;
     Eigen::Vector3d velocityDer = getVelocityDerivative(attitude,stochForce_,velocity,motorSpeed);
     Eigen::Vector4d attitudeDer = getAttitudeDerivative(attitude,angularVelocity);
@@ -273,6 +281,9 @@ void MulticopterDynamicsSim::proceedState_ExplicitEuler(double dt_secs, const st
 
 void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<double> & motorSpeedCommand){
 
+    std::vector<double> motorSpeedCommandBounded(numCopter_);
+    vectorBoundOp(motorSpeedCommand,motorSpeedCommandBounded,minMotorSpeed_,maxMotorSpeed_);
+
     std::vector<double> motorSpeed(motorSpeed_);
     Eigen::Vector3d position = position_;
     Eigen::Vector3d velocity = velocity_;
@@ -288,7 +299,7 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
 
     // k1
     std::vector<double> motorSpeedDer(numCopter_);
-    getMotorSpeedDerivative(motorSpeedDer,motorSpeed_,motorSpeedCommand);
+    getMotorSpeedDerivative(motorSpeedDer,motorSpeed_,motorSpeedCommandBounded);
     Eigen::Vector3d positionDer = dt_secs*velocity_;
     Eigen::Vector3d velocityDer = dt_secs*getVelocityDerivative(attitude_,stochForce_,velocity_,motorSpeed_);
     Eigen::Vector4d attitudeDer = dt_secs*getAttitudeDerivative(attitude_,angularVelocity_);
@@ -312,7 +323,7 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
     attitudeIntermediate.coeffs() = attitude_.coeffs() + attitudeDer*0.5;
     attitudeIntermediate.normalize();
 
-    getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommand);
+    getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommandBounded);
     positionDer = dt_secs*(velocity_ + 0.5*velocityDer);
     velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce_,(velocity_ + 0.5*velocityDer), motorSpeedIntermediate);
     attitudeDer = dt_secs*getAttitudeDerivative(attitudeIntermediate,(angularVelocity_ + 0.5*angularVelocityDer));
@@ -333,7 +344,7 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
     attitudeIntermediate.coeffs() = attitude_.coeffs() + attitudeDer*0.5;
     attitudeIntermediate.normalize();
 
-    getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommand);
+    getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommandBounded);
     positionDer = dt_secs*(velocity_ + 0.5*velocityDer);
     velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce_,(velocity_ + 0.5*velocityDer), motorSpeedIntermediate);
     attitudeDer = dt_secs*getAttitudeDerivative(attitudeIntermediate,(angularVelocity_ + 0.5*angularVelocityDer));
@@ -354,7 +365,7 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
     attitudeIntermediate.coeffs() = attitude_.coeffs() + attitudeDer;
     attitudeIntermediate.normalize();
 
-    getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommand);
+    getMotorSpeedDerivative(motorSpeedDer, motorSpeedIntermediate, motorSpeedCommandBounded);
     positionDer = dt_secs*(velocity_ + velocityDer);
     velocityDer = dt_secs*getVelocityDerivative(attitudeIntermediate,stochForce_,(velocity_ + velocityDer), motorSpeedIntermediate);
     attitudeDer = dt_secs*getAttitudeDerivative(attitudeIntermediate,(angularVelocity_ + angularVelocityDer));

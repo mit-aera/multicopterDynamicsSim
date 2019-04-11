@@ -13,6 +13,9 @@ class inertialMeasurementSim
         void setBias(const Eigen::Vector3d & accBias, const Eigen::Vector3d & gyroBias,
                                      double accBiasProcessNoiseAutoCorrelation,
                                      double gyroBiasProcessNoiseAutoCorrelation);
+        void setBias(double accBiasVariance, double gyroBiasVariance,
+                                     double accBiasProcessNoiseAutoCorrelation,
+                                     double gyroBiasProcessNoiseAutoCorrelation);
 
         void setNoiseVariance(double accMeasNoiseVariance, double gyroMeasNoiseVariance);
 

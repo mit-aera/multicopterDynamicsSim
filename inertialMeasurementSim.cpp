@@ -1,7 +1,10 @@
 #include "inertialMeasurementSim.hpp"
+#include <chrono>
 
 inertialMeasurementSim::inertialMeasurementSim(double accMeasNoiseVariance, double gyroMeasNoiseVariance,
                         double accBiasProcessNoiseAutoCorrelation, double gyroBiasProcessNoiseAutoCorrelation){
+
+    randomNumberGenerator_.seed(std::chrono::system_clock::now().time_since_epoch().count());
                             
     accMeasNoiseVariance_ = accMeasNoiseVariance;
     gyroMeasNoiseVariance_ = gyroMeasNoiseVariance;
@@ -14,6 +17,22 @@ void inertialMeasurementSim::setBias(const Eigen::Vector3d & accBias, const Eige
                                      double gyroBiasProcessNoiseAutoCorrelation){
     accBias_ = accBias;
     gyroBias_ = gyroBias;
+    accBiasProcessNoiseAutoCorrelation_ = accBiasProcessNoiseAutoCorrelation;
+    gyroBiasProcessNoiseAutoCorrelation_ = gyroBiasProcessNoiseAutoCorrelation;
+}
+
+void inertialMeasurementSim::setBias(double accBiasVariance, double gyroBiasVariance,
+                                     double accBiasProcessNoiseAutoCorrelation,
+                                     double gyroBiasProcessNoiseAutoCorrelation){
+
+    accBias_ << sqrt(accBiasVariance)*standardNormalDistribution_(randomNumberGenerator_),
+                sqrt(accBiasVariance)*standardNormalDistribution_(randomNumberGenerator_),
+                sqrt(accBiasVariance)*standardNormalDistribution_(randomNumberGenerator_);
+
+    gyroBias_ << sqrt(gyroBiasVariance)*standardNormalDistribution_(randomNumberGenerator_),
+                 sqrt(gyroBiasVariance)*standardNormalDistribution_(randomNumberGenerator_),
+                 sqrt(gyroBiasVariance)*standardNormalDistribution_(randomNumberGenerator_);
+
     accBiasProcessNoiseAutoCorrelation_ = accBiasProcessNoiseAutoCorrelation;
     gyroBiasProcessNoiseAutoCorrelation_ = gyroBiasProcessNoiseAutoCorrelation;
 }
