@@ -1,7 +1,30 @@
+/**
+ * @file multicopterDynamicsSim.cpp
+ * @author Ezra Tal
+ * @brief Multicopter dynamics simulator class implementation
+ * 
+ */
 #include "multicopterDynamicsSim.hpp"
 #include <iostream>
 #include <chrono>
 
+/**
+ * @brief Construct a new Multicopter Dynamics Sim object
+ * 
+ * @param numCopter Number of motors (e.g. 4 for a quadcopter)
+ * @param thrustCoefficient Motors thrust coefficient
+ * @param torqueCoefficient Motors torque coefficient
+ * @param minMotorSpeed Motors minimum rotation speed
+ * @param maxMotorSpeed Motors maximum rotation speed
+ * @param motorTimeConstant Motors time constant
+ * @param vehicleMass Vehicle mass
+ * @param vehicleInertia Vehicle inertia matrix
+ * @param aeroMomentCoefficient Vehicle aerodynamic moment coefficient matrix
+ * @param dragCoefficient Vehicle drag coefficient
+ * @param momentProcessNoiseAutoCorrelation Vehicle dynamics stochastic moment process noise auto correlation
+ * @param forceProcessNoiseAutoCorrelation Vehicle dynamics stochastic force process noise auto correlation
+ * @param gravity Gravity vector in world-fixed reference frame
+ */
 MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter,
 double thrustCoefficient, double torqueCoefficient,
 double minMotorSpeed, double maxMotorSpeed,
@@ -48,6 +71,11 @@ const Eigen::Vector3d & gravity
     gravity_ = gravity;
 }
 
+/**
+ * @brief Construct a new Multicopter Dynamics Sim object
+ * 
+ * @param numCopter Number of motors (e.g. 4 for a quadcopter)
+ */
 MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter)
 : numCopter_(numCopter)
 , motorFrame_(numCopter)
@@ -78,6 +106,16 @@ MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter)
     gravity_ << 0.,0.,9.81;
 }
 
+/**
+ * @brief Set vehicle properties
+ * 
+ * @param vehicleMass Vehicle mass
+ * @param vehicleInertia Vehicle inertia matrix
+ * @param aeroMomentCoefficient Vehicle aerodynamic moment coefficient matrix
+ * @param dragCoefficient Vehicle drag coefficient
+ * @param momentProcessNoiseAutoCorrelation Vehicle dynamics stochastic moment process noise auto correlation
+ * @param forceProcessNoiseAutoCorrelation Vehicle dynamics stochastic force process noise auto correlation
+ */
 void MulticopterDynamicsSim::setVehicleProperties(double vehicleMass,
                                             const Eigen::Matrix3d & vehicleInertia, 
                                             const Eigen::Matrix3d & aeroMomentCoefficient,
@@ -92,15 +130,41 @@ void MulticopterDynamicsSim::setVehicleProperties(double vehicleMass,
     forceProcessNoiseAutoCorrelation_ = forceProcessNoiseAutoCorrelation;
 }
 
+/**
+ * @brief Set orientation of world-fixed reference frame using gravity vector
+ * 
+ * @param gravity Gravity vector in world-fixed reference frame
+ */
 void MulticopterDynamicsSim::setGravityVector(const Eigen::Vector3d & gravity){
     gravity_ = gravity;
 }
 
+/**
+ * @brief Set orientation and position for individual motor
+ * 
+ * @param motorFrame Motor orientation and position with regard to body-fixed reference frame
+ * @param motorDirection Motor rotation direction
+ *         +1 if positive motor speed corresponds to positive moment around the motor frame z-axis
+           -1 if positive motor speed corresponds to negative moment around the motor frame z-axis
+           i.e. -1 indicates a positive motor speed corresponds to a positive rotation rate around the motor z-axis
+ * @param motorIndex Motor index number
+ */
 void MulticopterDynamicsSim::setMotorFrame(const Eigen::Isometry3d & motorFrame, int motorDirection, int motorIndex){
     motorFrame_.at(motorIndex) = motorFrame;
     motorDirection_.at(motorIndex) = motorDirection;
 }
 
+/**
+ * @brief Set properties for individual motor
+ * 
+ * @param thrustCoefficient Motor thrust coefficient
+ * @param torqueCoefficient Motor torque coefficient
+ * @param motorTimeConstant Motor time constant
+ * @param minMotorSpeed Minimum motor rotation speed
+ * @param maxMotorSpeed Maximum motor rotation speed
+ * @param rotationalInertia Motor moment of inertia
+ * @param motorIndex Motor index number
+ */
 void MulticopterDynamicsSim::setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
                                              double minMotorSpeed, double maxMotorSpeed, double rotationalInertia, int motorIndex){
     thrustCoefficient_.at(motorIndex) = thrustCoefficient;
@@ -111,6 +175,16 @@ void MulticopterDynamicsSim::setMotorProperties(double thrustCoefficient, double
     motorRotationalInertia_.at(motorIndex) = rotationalInertia;
 }
 
+/**
+ * @brief Set properties for all motors
+ * 
+ * @param thrustCoefficient Motor thrust coefficient
+ * @param torqueCoefficient Motor torque coefficient
+ * @param motorTimeConstant Motor time constant
+ * @param minMotorSpeed Minimum motor rotation speed
+ * @param maxMotorSpeed Maximum motor rotation speed
+ * @param rotationalInertia Motor moment of inertia
+ */
 void MulticopterDynamicsSim::setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
                                              double minMotorSpeed, double maxMotorSpeed, double rotationalInertia){
     for (int motorIndex = 0; motorIndex < numCopter_; motorIndex++){
@@ -119,22 +193,43 @@ void MulticopterDynamicsSim::setMotorProperties(double thrustCoefficient, double
     }
 }
 
+/**
+ * @brief Set motor speed for individual motor
+ * 
+ * @param motorSpeed Motor speed value
+ * @param motorIndex Motor index number
+ */
 void MulticopterDynamicsSim::setMotorSpeed(double motorSpeed, int motorIndex){
     motorSpeed_.at(motorIndex) = motorSpeed;
 }
 
+/**
+ * @brief Set motor speed for all motors
+ * 
+ * @param motorSpeed Motor speed value
+ */
 void MulticopterDynamicsSim::setMotorSpeed(double motorSpeed){
     for (int motorIndex = 0; motorIndex < numCopter_; motorIndex++){
         setMotorSpeed(motorSpeed, motorIndex);
     }
 }
 
+/**
+ * @brief Set motor speed to zero for all motors
+ * 
+ */
 void MulticopterDynamicsSim::resetMotorSpeeds(void){
     for (int indx = 0; indx < numCopter_; indx++){
         motorSpeed_.at(indx) = 0.;
     }
 }
 
+/**
+ * @brief Set vehicle position and attitude
+ * 
+ * @param position Position in world-fixed reference frame
+ * @param attitude Vehilce attitude quaternion
+ */
 void MulticopterDynamicsSim::setVehiclePosition(const Eigen::Vector3d & position,
                                              const Eigen::Quaterniond & attitude){
     position_ = position;
@@ -146,6 +241,15 @@ void MulticopterDynamicsSim::setVehiclePosition(const Eigen::Vector3d & position
     resetMotorSpeeds();
 }
 
+/**
+ * @brief Set vehicle state
+ * 
+ * @param position Position in world-fixed reference frame
+ * @param velocity Velocity in world-fixed reference frame
+ * @param angularVelocity Angular velocity in vehicle-fixed reference frame
+ * @param attitude Vehilce attitude quaternion
+ * @param motorSpeed Vector with motor speeds for all motors
+ */
 void MulticopterDynamicsSim::setVehicleState(const Eigen::Vector3d & position,
                                               const Eigen::Vector3d & velocity,
                                               const Eigen::Vector3d & angularVelocity,
@@ -160,6 +264,15 @@ void MulticopterDynamicsSim::setVehicleState(const Eigen::Vector3d & position,
     }
 }
 
+/**
+ * @brief Get vehicle state
+ * 
+ * @param position Position in world-fixed reference frame output
+ * @param velocity Velocity in world-fixed reference frame output
+ * @param angularVelocity Angular velocity in vehicle-fixed reference frame output
+ * @param attitude Vehilce attitude quaternion output
+ * @param motorSpeed Vector with motor speeds for all motors output
+ */
 void MulticopterDynamicsSim::getVehicleState(Eigen::Vector3d & position,
                                           Eigen::Vector3d & velocity,
                                           Eigen::Vector3d & angularVelocity,
@@ -172,31 +285,61 @@ void MulticopterDynamicsSim::getVehicleState(Eigen::Vector3d & position,
     motorSpeed = motorSpeed_;
 }
 
+/**
+ * @brief Get vehicle position
+ * 
+ * @return Eigen::Vector3d Position in world-fixed reference frame
+ */
 Eigen::Vector3d MulticopterDynamicsSim::getVehiclePosition(void){
     return position_;
 }
 
+/**
+ * @brief Get vehicle attitude 
+ * 
+ * @return Eigen::Quaterniond Vehicle attitude quaternion
+ */
 Eigen::Quaterniond MulticopterDynamicsSim::getVehicleAttitude(void){
     return attitude_;
 }
 
+/**
+ * @brief Get vehicle velocity
+ * 
+ * @return Eigen::Vector3d Velocity in world-fixed reference frame
+ */
 Eigen::Vector3d MulticopterDynamicsSim::getVehicleVelocity(void){
     return velocity_;
 }
 
+/**
+ * @brief Get vehicle angular velocity
+ * 
+ * @return Eigen::Vector3d Angular velocity in vehicle-fixed reference frame
+ */
 Eigen::Vector3d MulticopterDynamicsSim::getVehicleAngularVelocity(void){
     return angularVelocity_;
 }
 
-// In body frame
+/**
+ * @brief Get total specific force acting on vehicle, excluding gravity force
+ * 
+ * @return Eigen::Vector3d Specific force in vehicle-fixed reference frame
+ */
 Eigen::Vector3d MulticopterDynamicsSim::getVehicleSpecificForce(void){
-    Eigen::Vector3d specificForce = getThrust(motorSpeed_);
-    specificForce += attitude_.inverse()*getDragForce(velocity_)/vehicleMass_;
-    specificForce += attitude_.inverse()*stochForce_/vehicleMass_;
+    Eigen::Vector3d specificForce = (getThrust(motorSpeed_) + 
+                                     attitude_.inverse()*(getDragForce(velocity_) + stochForce_))
+                                     / vehicleMass_;
     
     return specificForce;
 }
 
+/**
+ * @brief Get thrust in vehicle-fixed reference frame
+ * 
+ * @param motorSpeed Vector containing motor speeds
+ * @return Eigen::Vector3d Thrust vector
+ */
 Eigen::Vector3d MulticopterDynamicsSim::getThrust(const std::vector<double> & motorSpeed){
     Eigen::Vector3d thrust = Eigen::Vector3d::Zero();
 
@@ -209,6 +352,13 @@ Eigen::Vector3d MulticopterDynamicsSim::getThrust(const std::vector<double> & mo
     return thrust;
 }
 
+/**
+ * @brief Get control moment in vehicle-fixed reference frame
+ * 
+ * @param motorSpeed Vector of motor speeds
+ * @param motorAcceleration Vector of motor accelerations
+ * @return Eigen::Vector3d Moment vector
+ */
 Eigen::Vector3d MulticopterDynamicsSim::getControlMoment(const std::vector<double> & motorSpeed, const std::vector<double> & motorAcceleration){
     Eigen::Vector3d controlMoment = Eigen::Vector3d::Zero();
 
@@ -226,18 +376,42 @@ Eigen::Vector3d MulticopterDynamicsSim::getControlMoment(const std::vector<doubl
     return controlMoment;
 }
 
+/**
+ * @brief Get aerodynamic moment in vehicle-fixed reference frame
+ * 
+ * @param angularVelocity Vehicle angular velocity
+ * @return Eigen::Vector3d Aerodynamic moment vector
+ */
 Eigen::Vector3d MulticopterDynamicsSim::getAeroMoment(const Eigen::Vector3d & angularVelocity){
     return (-angularVelocity.norm()*aeroMomentCoefficient_*angularVelocity);
 }
 
+/**
+ * @brief Get drag force in world-fixed reference frame
+ * 
+ * @param velocity Vehicle velocity in world-fixed reference frame
+ * @return Eigen::Vector3d Drag force vector
+ */
 Eigen::Vector3d MulticopterDynamicsSim::getDragForce(const Eigen::Vector3d & velocity){
     return (-dragCoefficient_*velocity.norm()*velocity);
 }
 
+/**
+ * @brief Get IMU measurement
+ * 
+ * @param accOutput Ouput accelerometer measurement
+ * @param gyroOutput Ouput gyroscope measurement
+ */
 void MulticopterDynamicsSim::getIMUMeasurement(Eigen::Vector3d & accOutput, Eigen::Vector3d & gyroOutput){
     imu_.getMeasurement(accOutput, gyroOutput, getVehicleSpecificForce(), angularVelocity_);
 }
 
+/**
+ * @brief Proceed vehicle dynamics using Explicit Euler integration
+ * 
+ * @param dt_secs Time step
+ * @param motorSpeedCommand Motor speed commands 
+ */
 void MulticopterDynamicsSim::proceedState_ExplicitEuler(double dt_secs, const std::vector<double> & motorSpeedCommand){
 
     std::vector<double> motorSpeedCommandBounded(numCopter_);
@@ -279,6 +453,12 @@ void MulticopterDynamicsSim::proceedState_ExplicitEuler(double dt_secs, const st
     imu_.proceedBiasDynamics(dt_secs);
 }
 
+/**
+ * @brief Proceed vehicle dynamics using 4th order Runge-Kutta integration
+ * 
+ * @param dt_secs Time step
+ * @param motorSpeedCommand Motor speed commands 
+ */
 void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<double> & motorSpeedCommand){
 
     std::vector<double> motorSpeedCommandBounded(numCopter_);
@@ -388,24 +568,51 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
     imu_.proceedBiasDynamics(dt_secs);
 }
 
+/**
+ * @brief Element-wise affine vector calculus: vec3 = vec1 + val*vec2
+ * 
+ * @param vec1 Vector additon term
+ * @param vec2 Vector multiplication factor
+ * @param vec3 Output resulting vector
+ * @param val Scalar multiplication factor
+ */
 void MulticopterDynamicsSim::vectorAffineOp(const std::vector<double> & vec1, const std::vector<double> & vec2,
                                          std::vector<double> & vec3, double val){
-    // vec3 = vec1 + val*vec2
     std::transform(vec1.begin(), vec1.end(), vec2.begin(), vec3.begin(), [val](const double & vec1val, const double & vec2val)->double{return (vec1val + val*vec2val);});
 }
 
+/**
+ * @brief Element-wise vector bound operation: vec2 = max(minvalue, min(maxvalue, vec1))
+ * 
+ * @param vec1 Input vector
+ * @param vec2 Output vector
+ * @param minvec Vector of lower bounds
+ * @param maxvec Vector of upper bounds
+ */
 void MulticopterDynamicsSim::vectorBoundOp(const std::vector<double> & vec1, std::vector<double> & vec2,
                                          const std::vector<double> &  minvec, const std::vector<double> & maxvec){
-    // vec2 = max(minvalue, min(maxvalue, vec1))
     std::transform(vec1.begin(), vec1.end(), maxvec.begin(), vec2.begin(), [](const double & vec1val, const double & maxvalue)->double{return fmin(vec1val,maxvalue);});
     std::transform(vec2.begin(), vec2.end(), minvec.begin(), vec2.begin(), [](const double & vec2val, const double & minvalue)->double{return fmax(vec2val,minvalue);});
 }
 
+/**
+ * @brief Vector-scalar product: vec2 = val*vec1
+ * 
+ * @param vec1 Input vector
+ * @param vec2 Output vector
+ * @param val Scalar multiplication
+ */
 void MulticopterDynamicsSim::vectorScalarProd(const std::vector<double> & vec1, std::vector<double> & vec2, double val){
-    // vec2 = val*vec1
     std::transform(vec1.begin(), vec1.end(), vec2.begin(), [val](const double & vec1val){return vec1val*val;});
 }
 
+/**
+ * @brief Get motor acceleration
+ * 
+ * @param motorSpeedDer Output vector of accelerationa
+ * @param motorSpeed Motor speeds vector
+ * @param motorSpeedCommand Motor commanded speeds vector
+ */
 void MulticopterDynamicsSim::getMotorSpeedDerivative(std::vector<double> & motorSpeedDer,
                                                   const std::vector<double> & motorSpeed,
                                                   const std::vector<double> & motorSpeedCommand){
@@ -414,12 +621,28 @@ void MulticopterDynamicsSim::getMotorSpeedDerivative(std::vector<double> & motor
     }
 }
 
+/**
+ * @brief Get vehicle accelertion in world-fixed reference frame
+ * 
+ * @param attitude Vehicle attitude
+ * @param stochForce Stochastic force vecotr
+ * @param velocity Vehicle velocity
+ * @param motorSpeed Motor speeds vector
+ * @return Eigen::Vector3d Acceleration vector
+ */
 Eigen::Vector3d MulticopterDynamicsSim::getVelocityDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & stochForce,
                                         const Eigen::Vector3d & velocity, const std::vector<double> & motorSpeed){
 
     return (gravity_ + (attitude*getThrust(motorSpeed) + getDragForce(velocity) + stochForce)/vehicleMass_);
 }
 
+/**
+ * @brief Get attitude quaternion time-derivative
+ * 
+ * @param attitude Vehicle attitude
+ * @param angularVelocity Vehicle angular velocity in vehicle-fixed reference frame
+ * @return Eigen::Vector4d Attitude derivative
+ */
 Eigen::Vector4d MulticopterDynamicsSim::getAttitudeDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & angularVelocity){
     Eigen::Quaterniond angularVelocityQuad;
     angularVelocityQuad.w() = 0;
@@ -428,6 +651,15 @@ Eigen::Vector4d MulticopterDynamicsSim::getAttitudeDerivative(const Eigen::Quate
     return (0.5*(attitude*angularVelocityQuad).coeffs());
 }
 
+/**
+ * @brief Get vehicle angular acceleration in vehicle-fixed reference frame
+ * 
+ * @param motorSpeed Vector of motor speeds
+ * @param motorAcceleration Vector of motor accelerations
+ * @param angularVelocity Vehicle angular velocity
+ * @param stochMoment Stochastic moment vector
+ * @return Eigen::Vector3d Angular acceleration
+ */
 Eigen::Vector3d MulticopterDynamicsSim::getAngularVelocityDerivative(const std::vector<double> & motorSpeed,
     const std::vector<double>& motorAcceleration, const Eigen::Vector3d & angularVelocity, const Eigen::Vector3d & stochMoment){
 

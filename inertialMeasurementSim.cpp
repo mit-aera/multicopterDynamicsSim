@@ -1,9 +1,24 @@
+/**
+ * @file inertialMeasurementSim.hpp
+ * @author Ezra Tal
+ * @brief Inertial measurement unit (IMU) simulator class implementation
+ * 
+ */
 #include "inertialMeasurementSim.hpp"
 #include <chrono>
 
+/**
+ * @brief Construct a new IMU Sim object
+ * 
+ * @param accMeasNoiseVariance Accelerometer additive noise variance
+ * @param gyroMeasNoiseVariance Gyroscope additive noise variance
+ * @param accBiasProcessNoiseAutoCorrelation Accelerometer bias process noise auto correlation
+ * @param gyroBiasProcessNoiseAutoCorrelation Gyroscope bias process noise auto correlation
+ */
 inertialMeasurementSim::inertialMeasurementSim(double accMeasNoiseVariance, double gyroMeasNoiseVariance,
                         double accBiasProcessNoiseAutoCorrelation, double gyroBiasProcessNoiseAutoCorrelation){
 
+    // RNG seed from current time
     randomNumberGenerator_.seed(std::chrono::system_clock::now().time_since_epoch().count());
                             
     accMeasNoiseVariance_ = accMeasNoiseVariance;
@@ -12,6 +27,14 @@ inertialMeasurementSim::inertialMeasurementSim(double accMeasNoiseVariance, doub
     gyroBiasProcessNoiseAutoCorrelation_ = gyroBiasProcessNoiseAutoCorrelation;
 }
 
+/**
+ * @brief Set bias properties
+ * 
+ * @param accBias Accelerometer bias value
+ * @param gyroBias Gyroscope bias value
+ * @param accBiasProcessNoiseAutoCorrelation Accelerometer bias process noise auto correlation
+ * @param gyroBiasProcessNoiseAutoCorrelation Gyroscope bias process noise auto correlation
+ */
 void inertialMeasurementSim::setBias(const Eigen::Vector3d & accBias, const Eigen::Vector3d & gyroBias,
                                      double accBiasProcessNoiseAutoCorrelation,
                                      double gyroBiasProcessNoiseAutoCorrelation){
@@ -21,6 +44,14 @@ void inertialMeasurementSim::setBias(const Eigen::Vector3d & accBias, const Eige
     gyroBiasProcessNoiseAutoCorrelation_ = gyroBiasProcessNoiseAutoCorrelation;
 }
 
+/**
+ * @brief Set bias properties
+ * 
+ * @param accBias Accelerometer bias variance
+ * @param gyroBias Gyroscope bias variance
+ * @param accBiasProcessNoiseAutoCorrelation Accelerometer bias process noise auto correlation
+ * @param gyroBiasProcessNoiseAutoCorrelation Gyroscope bias process noise auto correlation
+ */
 void inertialMeasurementSim::setBias(double accBiasVariance, double gyroBiasVariance,
                                      double accBiasProcessNoiseAutoCorrelation,
                                      double gyroBiasProcessNoiseAutoCorrelation){
@@ -37,19 +68,36 @@ void inertialMeasurementSim::setBias(double accBiasVariance, double gyroBiasVari
     gyroBiasProcessNoiseAutoCorrelation_ = gyroBiasProcessNoiseAutoCorrelation;
 }
 
+/**
+ * @brief Set additive noise variances
+ * 
+ * @param accMeasNoiseVariance Accelerometer additive noise variance
+ * @param gyroMeasNoiseVariance Gyroscope additive noise variance
+ */
 void inertialMeasurementSim::setNoiseVariance(double accMeasNoiseVariance, double gyroMeasNoiseVariance){
     accMeasNoiseVariance_ = accMeasNoiseVariance;
     gyroMeasNoiseVariance_ = gyroMeasNoiseVariance;
 }
 
+/**
+ * @brief Set IMU orientation with regard to body-frame
+ * 
+ * @param imuOrient IMU orientation with regard to body-frame
+ */
 void inertialMeasurementSim::setOrientation(const Eigen::Quaterniond & imuOrient){
     imuOrient_ = imuOrient;
 }
 
+/**
+ * @brief Get IMU measurement
+ * 
+ * @param accOutput Accelerometer output in IMU frame
+ * @param gyroOutput Gyroscope output in IMU frame
+ * @param specificForce Specific force in body-frame
+ * @param angularVelocity Angular velocity in body-frame
+ */
 void inertialMeasurementSim::getMeasurement(Eigen::Vector3d & accOutput, Eigen::Vector3d & gyroOutput,
                 const Eigen::Vector3d specificForce, const Eigen::Vector3d angularVelocity){
-    // specificForce and angularVelocity in body-frame
-    // accOutput and gyroOutput in IMU frame
 
     Eigen::Vector3d accNoise;
 
@@ -67,6 +115,11 @@ void inertialMeasurementSim::getMeasurement(Eigen::Vector3d & accOutput, Eigen::
     gyroOutput = imuOrient_.inverse()*angularVelocity + gyroBias_ + gyroNoise;
 }
 
+/**
+ * @brief Proceed accelerometer and gyroscope bias dynamics
+ * 
+ * @param dt_secs Time step
+ */
 void inertialMeasurementSim::proceedBiasDynamics(double dt_secs){
     Eigen::Vector3d accBiasDerivative;
 

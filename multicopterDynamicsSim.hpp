@@ -1,3 +1,10 @@
+/**
+ * @file multicopterDynamicsSim.hpp
+ * @author Ezra Tal
+ * @brief Multicopter dynamics simulator class header file
+ * 
+ */
+
 #ifndef MULTICOPTERDYNAMICSSIM_H
 #define MULTICOPTERDYNAMICSSIM_H
 
@@ -6,6 +13,10 @@
 #include <vector>
 #include "inertialMeasurementSim.hpp"
 
+/**
+ * @brief Multicopter dynamics simulator class
+ * 
+ */
 class MulticopterDynamicsSim{
     public:
         MulticopterDynamicsSim(int numCopter, double thrustCoefficient, double torqueCoefficient,
@@ -53,14 +64,15 @@ class MulticopterDynamicsSim{
 
         void getIMUMeasurement(Eigen::Vector3d & accOutput, Eigen::Vector3d & gyroOutput);
 
-        // IMU
+        /// @name IMU simulator
         inertialMeasurementSim imu_ = inertialMeasurementSim(0.,0.,0.,0.);
         
     private:
-        // Number of rotors
+        /// @name  Number of rotors
         int numCopter_;
 
-        // Motor properties
+        /// @name Motor properties
+        //@{
 
         // Transform from motor to vehicle (c.o.g.) frame
         /* Motor frame must have prop spinning around z-axis such that
@@ -74,39 +86,48 @@ class MulticopterDynamicsSim{
         */
         std::vector<int> motorDirection_;
 
-        std::vector<double> thrustCoefficient_;
-        std::vector<double> torqueCoefficient_;
-        std::vector<double> motorTimeConstant_;
-        std::vector<double> motorRotationalInertia_;
-        std::vector<double> maxMotorSpeed_;
-        std::vector<double> minMotorSpeed_;
+        std::vector<double> thrustCoefficient_; // N/(rad/s)^2
+        std::vector<double> torqueCoefficient_; // Nm/(rad/s)^2
+        std::vector<double> motorTimeConstant_; // s
+        std::vector<double> motorRotationalInertia_; // kg m^2
+        std::vector<double> maxMotorSpeed_; // rad/s
+        std::vector<double> minMotorSpeed_; // rad/s
+        //@}
 
-        // Vehicle properties
-        double dragCoefficient_;
-        Eigen::Matrix3d aeroMomentCoefficient_;
-        double vehicleMass_;
-        Eigen::Matrix3d vehicleInertia_;
-        double momentProcessNoiseAutoCorrelation_ = 0.; // N^2s
-        double forceProcessNoiseAutoCorrelation_ = 0.; // (Nm)^2s
+        /// @name Vehicle properties
+        //@{
+        double dragCoefficient_; // N/(m/s)
+        Eigen::Matrix3d aeroMomentCoefficient_; // Nm/(rad/s)^2
+        double vehicleMass_; // kg
+        Eigen::Matrix3d vehicleInertia_; // kg m^2
+        double momentProcessNoiseAutoCorrelation_ = 0.; // (Nm)^2s
+        double forceProcessNoiseAutoCorrelation_ = 0.; // N^2s
+        //@}
 
-        // Std normal RNG
+        /// @name Std normal RNG
+        //@{
         std::default_random_engine randomNumberGenerator_;
         std::normal_distribution<double> standardNormalDistribution_ = std::normal_distribution<double>(0.0,1.0);
+        //@}
 
-        // Default is NED, but can be set by changing gravity direction
-        Eigen::Vector3d gravity_;
+        // Default reference frame is NED, but can be set by changing gravity direction
+        /// @name Gravity vector
+        Eigen::Vector3d gravity_; // m/s^2
 
-        // Vehicle state variables
-        std::vector<double> motorSpeed_;
-        Eigen::Vector3d velocity_ = Eigen::Vector3d::Zero();
-        Eigen::Vector3d position_ = Eigen::Vector3d::Zero();
-        Eigen::Vector3d angularVelocity_ = Eigen::Vector3d::Zero();
+        /// @name Vehicle state variables
+        //@{
+        std::vector<double> motorSpeed_; // rad/s
+        Eigen::Vector3d velocity_ = Eigen::Vector3d::Zero(); // m/s
+        Eigen::Vector3d position_ = Eigen::Vector3d::Zero(); // m
+        Eigen::Vector3d angularVelocity_ = Eigen::Vector3d::Zero(); // rad/s
         Eigen::Quaterniond attitude_ = Eigen::Quaterniond::Identity();
+        //@}
 
         /* Vehicle stochastic force vector (in world frame) is maintained
         for accelerometer output, since it must include the same
         random linear acceleration noise as used for dynamics integration*/
-        Eigen::Vector3d stochForce_ = Eigen::Vector3d::Zero();
+        /// @name Vehicle stochastic force vector
+        Eigen::Vector3d stochForce_ = Eigen::Vector3d::Zero(); // N
 
         Eigen::Vector3d getThrust(const std::vector<double> & motorSpeed);
         Eigen::Vector3d getControlMoment(const std::vector<double> & motorSpeed, const std::vector<double> & motorAcceleration);
