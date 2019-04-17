@@ -1,5 +1,5 @@
 /**
- * @file inertialMeasurementSim.hpp
+ * @file inertialMeasurementSim.cpp
  * @author Ezra Tal
  * @brief Inertial measurement unit (IMU) simulator class implementation
  * 

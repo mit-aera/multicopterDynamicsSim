@@ -62,7 +62,7 @@ class inertialMeasurementSim
         Eigen::Vector3d gyroBias_ = Eigen::Vector3d::Zero(); // rad/s
         //@}
 
-        /// @name Orientation of IMU in body-fixed frame
+        /// @name Orientation of IMU wrt body-fixed frame
         //@{
         Eigen::Quaterniond imuOrient_ = Eigen::Quaterniond::Identity();
         //@}
