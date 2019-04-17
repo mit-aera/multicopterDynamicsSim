@@ -69,6 +69,23 @@ void inertialMeasurementSim::setBias(double accBiasVariance, double gyroBiasVari
 }
 
 /**
+ * @brief Set bias
+ * 
+ * @param accBias Accelerometer bias variance
+ * @param gyroBias Gyroscope bias variance
+ */
+void inertialMeasurementSim::setBias(double accBiasVariance, double gyroBiasVariance){
+
+    accBias_ << sqrt(accBiasVariance)*standardNormalDistribution_(randomNumberGenerator_),
+                sqrt(accBiasVariance)*standardNormalDistribution_(randomNumberGenerator_),
+                sqrt(accBiasVariance)*standardNormalDistribution_(randomNumberGenerator_);
+
+    gyroBias_ << sqrt(gyroBiasVariance)*standardNormalDistribution_(randomNumberGenerator_),
+                 sqrt(gyroBiasVariance)*standardNormalDistribution_(randomNumberGenerator_),
+                 sqrt(gyroBiasVariance)*standardNormalDistribution_(randomNumberGenerator_);
+}
+
+/**
  * @brief Set additive noise variances
  * 
  * @param accMeasNoiseVariance Accelerometer additive noise variance

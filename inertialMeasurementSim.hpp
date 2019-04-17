@@ -28,6 +28,8 @@ class inertialMeasurementSim
                                      double accBiasProcessNoiseAutoCorrelation,
                                      double gyroBiasProcessNoiseAutoCorrelation);
 
+        void setBias(double accBiasVariance, double gyroBiasVariance);
+
         void setNoiseVariance(double accMeasNoiseVariance, double gyroMeasNoiseVariance);
 
         void setOrientation(const Eigen::Quaterniond & imuOrient);

@@ -20,40 +20,41 @@
 class MulticopterDynamicsSim{
     public:
         MulticopterDynamicsSim(int numCopter, double thrustCoefficient, double torqueCoefficient,
-                            double minMotorSpeed, double maxMotorSpeed,
-                            double motorTimeConstant, double vehicleMass,
-                            const Eigen::Matrix3d & vehicleInertia, 
-                            const Eigen::Matrix3d & aeroMomentCoefficient,
-                            double dragCoefficient,
-                            double momentProcessNoiseAutoCorrelation,
-                            double forceProcessNoiseAutoCorrelation,
-                            const Eigen::Vector3d & gravity);
+                               double minMotorSpeed, double maxMotorSpeed,
+                               double motorTimeConstant, double motorRotationalInertia,
+                               double vehicleMass,
+                               const Eigen::Matrix3d & vehicleInertia, 
+                               const Eigen::Matrix3d & aeroMomentCoefficient,
+                               double dragCoefficient,
+                               double momentProcessNoiseAutoCorrelation,
+                               double forceProcessNoiseAutoCorrelation,
+                               const Eigen::Vector3d & gravity);
         MulticopterDynamicsSim(int numCopter);
         void setVehicleProperties(double vehicleMass, const Eigen::Matrix3d & vehicleInertia, 
-                                            const Eigen::Matrix3d & aeroMomentCoefficient,
-                                            double dragCoefficient,
-                                            double momentProcessNoiseAutoCorrelation,
-                                            double forceProcessNoiseAutoCorrelation);
+                                  const Eigen::Matrix3d & aeroMomentCoefficient,
+                                  double dragCoefficient,
+                                  double momentProcessNoiseAutoCorrelation,
+                                  double forceProcessNoiseAutoCorrelation);
         void setGravityVector(const Eigen::Vector3d & gravity);
         void setMotorFrame(const Eigen::Isometry3d & motorFrame, int motorDirection, int motorIndex);
         void setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
-                                             double minMotorSpeed, double maxMotorSpeed, double rotationalInertia, int motorIndex);
+                                double minMotorSpeed, double maxMotorSpeed, double rotationalInertia, int motorIndex);
         void setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
-                                             double minMotorSpeed, double maxMotorSpeed, double rotationalInertia);
+                                double minMotorSpeed, double maxMotorSpeed, double rotationalInertia);
         void setMotorSpeed(double motorSpeed, int motorIndex);
         void setMotorSpeed(double motorSpeed);
         void resetMotorSpeeds(void);
         void setVehiclePosition(const Eigen::Vector3d & position,const Eigen::Quaterniond & attitude);
         void setVehicleState(const Eigen::Vector3d & position,
-                                              const Eigen::Vector3d & velocity,
-                                              const Eigen::Vector3d & angularVelocity,
-                                              const Eigen::Quaterniond & attitude,
-                                              const std::vector<double> & motorSpeed);
+                             const Eigen::Vector3d & velocity,
+                             const Eigen::Vector3d & angularVelocity,
+                             const Eigen::Quaterniond & attitude,
+                             const std::vector<double> & motorSpeed);
         void getVehicleState(Eigen::Vector3d & position,
-                                          Eigen::Vector3d & velocity,
-                                          Eigen::Vector3d & angularVelocity,
-                                          Eigen::Quaterniond & attitude,
-                                          std::vector<double> & motorSpeed);
+                             Eigen::Vector3d & velocity,
+                             Eigen::Vector3d & angularVelocity,
+                             Eigen::Quaterniond & attitude,
+                             std::vector<double> & motorSpeed);
         Eigen::Vector3d getVehiclePosition(void);
         Eigen::Quaterniond getVehicleAttitude(void);
         Eigen::Vector3d getVehicleVelocity(void);
@@ -130,24 +131,27 @@ class MulticopterDynamicsSim{
         Eigen::Vector3d stochForce_ = Eigen::Vector3d::Zero(); // N
 
         Eigen::Vector3d getThrust(const std::vector<double> & motorSpeed);
-        Eigen::Vector3d getControlMoment(const std::vector<double> & motorSpeed, const std::vector<double> & motorAcceleration);
+        Eigen::Vector3d getControlMoment(const std::vector<double> & motorSpeed,
+                                         const std::vector<double> & motorAcceleration);
         Eigen::Vector3d getAeroMoment(const Eigen::Vector3d & angularVelocity);
         Eigen::Vector3d getDragForce(const Eigen::Vector3d & velocity);
         Eigen::Vector3d getVehicleSpecificForce(void);
 
         void getMotorSpeedDerivative(std::vector<double> & motorSpeedDer,
-                                                  const std::vector<double> & motorSpeed,
-                                                  const std::vector<double> & motorSpeedCommand);
+                                     const std::vector<double> & motorSpeed,
+                                     const std::vector<double> & motorSpeedCommand);
         Eigen::Vector3d getVelocityDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & stochForce,
-                                        const Eigen::Vector3d & velocity, const std::vector<double> & motorSpeed);
+                                              const Eigen::Vector3d & velocity, const std::vector<double> & motorSpeed);
         Eigen::Vector3d getAngularVelocityDerivative(const std::vector<double> & motorSpeed,
-            const std::vector<double>& motorAcceleration, const Eigen::Vector3d & angularVelocity, const Eigen::Vector3d & stochMoment);
+                                                     const std::vector<double>& motorAcceleration,
+                                                     const Eigen::Vector3d & angularVelocity,
+                                                     const Eigen::Vector3d & stochMoment);
         Eigen::Vector4d getAttitudeDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & angularVelocity);
         void vectorAffineOp(const std::vector<double> & vec1, const std::vector<double> & vec2, 
-                                  std::vector<double> & vec3, double val);
+                            std::vector<double> & vec3, double val);
         void vectorScalarProd(const std::vector<double> & vec1, std::vector<double> & vec2, double val);
         void vectorBoundOp(const std::vector<double> & vec1, std::vector<double> & vec2,
-                                         const std::vector<double> &  minvec, const std::vector<double> & maxvec);
+                           const std::vector<double> &  minvec, const std::vector<double> & maxvec);
 };
 
 #endif // MULTICOPTERDYNAMICSSIM_H

@@ -17,6 +17,7 @@
  * @param minMotorSpeed Motors minimum rotation speed
  * @param maxMotorSpeed Motors maximum rotation speed
  * @param motorTimeConstant Motors time constant
+ * @param motorRotationalInertia Motors rotational mass moment of inertia (including propeller)
  * @param vehicleMass Vehicle mass
  * @param vehicleInertia Vehicle inertia matrix
  * @param aeroMomentCoefficient Vehicle aerodynamic moment coefficient matrix
@@ -28,7 +29,8 @@
 MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter,
 double thrustCoefficient, double torqueCoefficient,
 double minMotorSpeed, double maxMotorSpeed,
-double motorTimeConstant, double vehicleMass,
+double motorTimeConstant, double motorRotationalInertia,
+double vehicleMass,
 const Eigen::Matrix3d & vehicleInertia, 
 const Eigen::Matrix3d & aeroMomentCoefficient,
 double dragCoefficient,
@@ -54,7 +56,7 @@ const Eigen::Vector3d & gravity
         thrustCoefficient_.at(indx) = thrustCoefficient;
         torqueCoefficient_.at(indx) = torqueCoefficient;
         motorTimeConstant_.at(indx) = motorTimeConstant;
-        motorRotationalInertia_.at(indx) = 0.;
+        motorRotationalInertia_.at(indx) = motorRotationalInertia;
         maxMotorSpeed_.at(indx) = maxMotorSpeed;
         minMotorSpeed_.at(indx) = minMotorSpeed;
         motorDirection_.at(indx) = 1;
@@ -72,7 +74,8 @@ const Eigen::Vector3d & gravity
 }
 
 /**
- * @brief Construct a new Multicopter Dynamics Sim object
+ * @brief Brief constructor for a new Multicopter Dynamics Sim object;
+ * vehicle properties must still be set seperately
  * 
  * @param numCopter Number of motors (e.g. 4 for a quadcopter)
  */
@@ -166,7 +169,7 @@ void MulticopterDynamicsSim::setMotorFrame(const Eigen::Isometry3d & motorFrame,
  * @param motorIndex Motor index number
  */
 void MulticopterDynamicsSim::setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
-                                             double minMotorSpeed, double maxMotorSpeed, double rotationalInertia, int motorIndex){
+                                                double minMotorSpeed, double maxMotorSpeed, double rotationalInertia, int motorIndex){
     thrustCoefficient_.at(motorIndex) = thrustCoefficient;
     torqueCoefficient_.at(motorIndex) = torqueCoefficient;
     motorTimeConstant_.at(motorIndex) = motorTimeConstant;
@@ -186,7 +189,7 @@ void MulticopterDynamicsSim::setMotorProperties(double thrustCoefficient, double
  * @param rotationalInertia Motor moment of inertia
  */
 void MulticopterDynamicsSim::setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
-                                             double minMotorSpeed, double maxMotorSpeed, double rotationalInertia){
+                                                double minMotorSpeed, double maxMotorSpeed, double rotationalInertia){
     for (int motorIndex = 0; motorIndex < numCopter_; motorIndex++){
         setMotorProperties(thrustCoefficient, torqueCoefficient, motorTimeConstant,
                                              minMotorSpeed, maxMotorSpeed, rotationalInertia, motorIndex);
@@ -231,7 +234,7 @@ void MulticopterDynamicsSim::resetMotorSpeeds(void){
  * @param attitude Vehilce attitude quaternion
  */
 void MulticopterDynamicsSim::setVehiclePosition(const Eigen::Vector3d & position,
-                                             const Eigen::Quaterniond & attitude){
+                                                const Eigen::Quaterniond & attitude){
     position_ = position;
     attitude_ = attitude;
 
@@ -251,10 +254,10 @@ void MulticopterDynamicsSim::setVehiclePosition(const Eigen::Vector3d & position
  * @param motorSpeed Vector with motor speeds for all motors
  */
 void MulticopterDynamicsSim::setVehicleState(const Eigen::Vector3d & position,
-                                              const Eigen::Vector3d & velocity,
-                                              const Eigen::Vector3d & angularVelocity,
-                                              const Eigen::Quaterniond & attitude,
-                                              const std::vector<double> & motorSpeed){
+                                             const Eigen::Vector3d & velocity,
+                                             const Eigen::Vector3d & angularVelocity,
+                                             const Eigen::Quaterniond & attitude,
+                                             const std::vector<double> & motorSpeed){
     position_ = position;
     velocity_ = velocity;
     angularVelocity_ = angularVelocity;
@@ -274,10 +277,10 @@ void MulticopterDynamicsSim::setVehicleState(const Eigen::Vector3d & position,
  * @param motorSpeed Vector with motor speeds for all motors output
  */
 void MulticopterDynamicsSim::getVehicleState(Eigen::Vector3d & position,
-                                          Eigen::Vector3d & velocity,
-                                          Eigen::Vector3d & angularVelocity,
-                                          Eigen::Quaterniond & attitude,
-                                          std::vector<double> & motorSpeed){
+                                             Eigen::Vector3d & velocity,
+                                             Eigen::Vector3d & angularVelocity,
+                                             Eigen::Quaterniond & attitude,
+                                             std::vector<double> & motorSpeed){
     position = position_;
     velocity = velocity_;
     angularVelocity = angularVelocity_;
@@ -571,7 +574,7 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
 /**
  * @brief Element-wise affine vector calculus: vec3 = vec1 + val*vec2
  * 
- * @param vec1 Vector additon term
+ * @param vec1 Vector addition term
  * @param vec2 Vector multiplication factor
  * @param vec3 Output resulting vector
  * @param val Scalar multiplication factor
