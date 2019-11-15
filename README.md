@@ -1,8 +1,7 @@
 # multicopterDynamicsSim
 Simulation of multicopter dynamics and IMU measurement. This code is released as part of FlightGoggles, but can be used independently.
 
-An example application can be found in the [FlightGoggles GitHub repository](https://github.com/mit-fast/FlightGoggles)
-, specifically [here](https://github.com/mit-fast/FlightGoggles/blob/master/flightgoggles_uav_dynamics/src/flightgoggles_uav_dynamics_node.cpp).
+An example application can be found in the [FlightGoggles GitHub repository](https://github.com/mit-fast/FlightGoggles), specifically [here](https://github.com/mit-fast/FlightGoggles/blob/master/flightgoggles_uav_dynamics/src/flightgoggles_uav_dynamics_node.cpp).
 
 If you find this work useful for your research, please cite:
 ```bibtex
