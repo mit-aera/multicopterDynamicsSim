@@ -10,6 +10,7 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <random>
 
 /**
  * @brief Inertial measurement unit (IMU) simulator class
