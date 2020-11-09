@@ -13,6 +13,8 @@
 #include <vector>
 #include "inertialMeasurementSim.hpp"
 
+#include <iomanip>
+
 /**
  * @brief Multicopter dynamics simulator class
  * 
@@ -61,6 +63,7 @@ class MulticopterDynamicsSim{
         Eigen::Quaterniond getVehicleAttitude(void);
         Eigen::Vector3d getVehicleVelocity(void);
         Eigen::Vector3d getVehicleAngularVelocity(void);
+        std::vector<double> getMotorSpeed();
 
         Eigen::Vector3d getThrust(const std::vector<double> & motorSpeed);
         Eigen::Vector3d getControlMoment(const std::vector<double> & motorSpeed,
@@ -92,6 +95,10 @@ class MulticopterDynamicsSim{
         /// @name  Number of rotors
         int numCopter_;
 
+        /// @name Flag indicating whether to add stochastic forces
+        //TODO add ROS parameter querying to set this.
+        bool enableStochasticity_;
+
         /// @name Motor properties
         //@{
 
@@ -104,6 +111,12 @@ class MulticopterDynamicsSim{
         /* +1 if positive motor speed corresponds to positive moment around the motor frame z-axis
            -1 if positive motor speed corresponds to negative moment around the motor frame z-axis
            i.e. -1 indicates a positive motor speed corresponds to a positive rotation rate around the motor z-axis
+
+           Values: 
+           motor0 -1 (front left)
+           motor1 1 (back left)
+           motor2 -1 (back right)
+           motor3 1 (front right)
         */
         std::vector<int> motorDirection_;
 

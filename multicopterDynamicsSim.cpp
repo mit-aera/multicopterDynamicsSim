@@ -48,6 +48,7 @@ const Eigen::Vector3d & gravity
 , motorTimeConstant_(numCopter)
 , maxMotorSpeed_(numCopter)
 , minMotorSpeed_(numCopter)
+, enableStochasticity_(true)
 {
     randomNumberGenerator_.seed(std::chrono::system_clock::now().time_since_epoch().count());
 
@@ -90,6 +91,7 @@ MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter)
 , motorTimeConstant_(numCopter)
 , maxMotorSpeed_(numCopter)
 , minMotorSpeed_(numCopter)
+, enableStochasticity_(true)
 {
     randomNumberGenerator_.seed(std::chrono::system_clock::now().time_since_epoch().count());
 
@@ -325,16 +327,28 @@ Eigen::Vector3d MulticopterDynamicsSim::getVehicleAngularVelocity(void){
 }
 
 /**
+ * @brief Get the speeds of the motors
+ * 
+ * @return std::vector<double> Vector with motor speeds for all motor outputs.
+ */
+std::vector<double> MulticopterDynamicsSim::getMotorSpeed() {
+    return motorSpeed_;
+}
+
+/**
  * @brief Get total specific force acting on vehicle, excluding gravity force
  * 
  * @return Eigen::Vector3d Specific force in vehicle-fixed reference frame
  */
 Eigen::Vector3d MulticopterDynamicsSim::getVehicleSpecificForce(void){
-    Eigen::Vector3d specificForce = (getThrust(motorSpeed_) + 
-                                     attitude_.inverse()*(getDragForce(velocity_) + stochForce_))
-                                     / vehicleMass_;
-    
-    return specificForce;
+    Eigen::Vector3d specificForce = getThrust(motorSpeed_);
+
+    if (enableStochasticity_) {
+        specificForce += (attitude_.inverse()*(getDragForce(velocity_) + stochForce_));
+    } else {
+        specificForce += (attitude_.inverse()*getDragForce(velocity_));
+    }
+    return specificForce / vehicleMass_;
 }
 
 /**
@@ -363,18 +377,21 @@ Eigen::Vector3d MulticopterDynamicsSim::getThrust(const std::vector<double> & mo
  * @return Eigen::Vector3d Moment vector
  */
 Eigen::Vector3d MulticopterDynamicsSim::getControlMoment(const std::vector<double> & motorSpeed, const std::vector<double> & motorAcceleration){
-    Eigen::Vector3d controlMoment = Eigen::Vector3d::Zero();
+    Eigen::Vector3d thrustMoment = Eigen::Vector3d::Zero();
+    Eigen::Vector3d motorTorqueMoment = Eigen::Vector3d::Zero();
 
     for (int indx = 0; indx < numCopter_; indx++){
         // Moment due to thrust
         Eigen::Vector3d motorThrust(0.,0.,fabs(motorSpeed.at(indx))*motorSpeed.at(indx)*thrustCoefficient_.at(indx));
-        controlMoment += motorFrame_.at(indx).translation().cross(motorFrame_.at(indx).linear()*motorThrust);
+        thrustMoment += motorFrame_.at(indx).translation().cross(motorFrame_.at(indx).linear()*motorThrust);
 
         // Moment due to torque
         Eigen::Vector3d motorTorque(0.,0.,motorDirection_.at(indx)*fabs(motorSpeed.at(indx))*motorSpeed.at(indx)*torqueCoefficient_.at(indx));
         motorTorque(2) += motorDirection_.at(indx)*motorRotationalInertia_.at(indx)*motorAcceleration.at(indx);
-        controlMoment += motorFrame_.at(indx).linear()*motorTorque;
+        motorTorqueMoment += motorFrame_.at(indx).linear()*motorTorque;
     }
+
+    Eigen::Vector3d controlMoment = thrustMoment + motorTorqueMoment;
 
     return controlMoment;
 }
@@ -429,9 +446,13 @@ void MulticopterDynamicsSim::proceedState_ExplicitEuler(double dt_secs, const st
     stochForce_ /= sqrt(dt_secs);
 
     Eigen::Vector3d stochMoment;
-    stochMoment << sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
-                   sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
-                   sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_);
+    if (enableStochasticity_) {
+        stochMoment << sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
+                    sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
+                    sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_);
+    } else {
+        stochMoment << 0, 0, 0;
+    }
 
     std::vector<double> motorSpeedDer(numCopter_);
     getMotorSpeedDerivative(motorSpeedDer,motorSpeed,motorSpeedCommandBounded);
@@ -449,9 +470,13 @@ void MulticopterDynamicsSim::proceedState_ExplicitEuler(double dt_secs, const st
 
     attitude_.normalize();
 
-    stochForce_ << sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
-                   sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
-                   sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_);
+    if (enableStochasticity_) {
+        stochForce_ << sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
+                    sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
+                    sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_);
+    } else {
+        stochForce_ << 0, 0, 0;
+    }
 
     imu_.proceedBiasDynamics(dt_secs);
 }
@@ -476,9 +501,14 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
     stochForce_ /= sqrt(dt_secs);
 
     Eigen::Vector3d stochMoment;
-    stochMoment << sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
-                   sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
-                   sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_);
+    if (enableStochasticity_) {
+        stochMoment << sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
+                       sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_),
+                       sqrt(momentProcessNoiseAutoCorrelation_/dt_secs)*standardNormalDistribution_(randomNumberGenerator_);
+    } else {
+        stochMoment << 0, 0, 0;
+    }
+    
 
     // k1
     std::vector<double> motorSpeedDer(numCopter_);
@@ -564,9 +594,13 @@ void MulticopterDynamicsSim::proceedState_RK4(double dt_secs, const std::vector<
     attitude_.normalize();
     angularVelocity_ = angularVelocity + angularVelocityDer*(1./6.);
 
-    stochForce_ << sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
-                   sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
-                   sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_);
+    if (enableStochasticity_) {
+        stochForce_ << sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
+                       sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_),
+                       sqrt(forceProcessNoiseAutoCorrelation_)*standardNormalDistribution_(randomNumberGenerator_);
+    } else {
+        stochForce_ << 0, 0, 0;
+    }
 
     imu_.proceedBiasDynamics(dt_secs);
 }
