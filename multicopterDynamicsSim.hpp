@@ -65,23 +65,7 @@ class MulticopterDynamicsSim{
         Eigen::Vector3d getVehicleAngularVelocity(void);
         std::vector<double> getMotorSpeed();
 
-        Eigen::Vector3d getThrust(const std::vector<double> & motorSpeed);
-        Eigen::Vector3d getControlMoment(const std::vector<double> & motorSpeed,
-                                         const std::vector<double> & motorAcceleration);
-        Eigen::Vector3d getAeroMoment(const Eigen::Vector3d & angularVelocity);
-        Eigen::Vector3d getDragForce(const Eigen::Vector3d & velocity);
         Eigen::Vector3d getVehicleSpecificForce(void);
-
-        void getMotorSpeedDerivative(std::vector<double> & motorSpeedDer,
-                                     const std::vector<double> & motorSpeed,
-                                     const std::vector<double> & motorSpeedCommand);
-        Eigen::Vector3d getVelocityDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & stochForce,
-                                              const Eigen::Vector3d & velocity, const std::vector<double> & motorSpeed);
-        Eigen::Vector3d getAngularVelocityDerivative(const std::vector<double> & motorSpeed,
-                                                     const std::vector<double>& motorAcceleration,
-                                                     const Eigen::Vector3d & angularVelocity,
-                                                     const Eigen::Vector3d & stochMoment);
-        Eigen::Vector4d getAttitudeDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & angularVelocity);
 
         void proceedState_ExplicitEuler(double dt_secs, const std::vector<double> & motorSpeedCommand);
         void proceedState_RK4(double dt_secs, const std::vector<double> & motorSpeedCommand);
