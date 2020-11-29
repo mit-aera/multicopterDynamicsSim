@@ -30,6 +30,8 @@ class MulticopterDynamicsSim{
                                double forceProcessNoiseAutoCorrelation,
                                const Eigen::Vector3d & gravity);
         MulticopterDynamicsSim(int numCopter);
+
+        int getNumCopter() { return numCopter_; }
         void setVehicleProperties(double vehicleMass, const Eigen::Matrix3d & vehicleInertia, 
                                   const Eigen::Matrix3d & aeroMomentCoefficient,
                                   double dragCoefficient,
@@ -59,7 +61,8 @@ class MulticopterDynamicsSim{
         Eigen::Quaterniond getVehicleAttitude(void);
         Eigen::Vector3d getVehicleVelocity(void);
         Eigen::Vector3d getVehicleAngularVelocity(void);
-        
+        std::vector<double> getMotorSpeed();
+
         void proceedState_ExplicitEuler(double dt_secs, const std::vector<double> & motorSpeedCommand);
         void proceedState_RK4(double dt_secs, const std::vector<double> & motorSpeedCommand);
 
@@ -84,6 +87,12 @@ class MulticopterDynamicsSim{
         /* +1 if positive motor speed corresponds to positive moment around the motor frame z-axis
            -1 if positive motor speed corresponds to negative moment around the motor frame z-axis
            i.e. -1 indicates a positive motor speed corresponds to a positive rotation rate around the motor z-axis
+
+           Values: 
+           motor0 -1 (front left)
+           motor1 1 (back left)
+           motor2 -1 (back right)
+           motor3 1 (front right)
         */
         std::vector<int> motorDirection_;
 

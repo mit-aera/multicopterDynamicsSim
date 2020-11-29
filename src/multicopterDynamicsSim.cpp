@@ -4,7 +4,7 @@
  * @brief Multicopter dynamics simulator class implementation
  * 
  */
-#include "multicopterDynamicsSim.hpp"
+#include "multicopter_sim/multicopterDynamicsSim.hpp"
 #include <iostream>
 #include <chrono>
 
@@ -325,6 +325,15 @@ Eigen::Vector3d MulticopterDynamicsSim::getVehicleAngularVelocity(void){
 }
 
 /**
+ * @brief Get the speeds of the motors
+ * 
+ * @return std::vector<double> Vector with motor speeds for all motor outputs.
+ */
+std::vector<double> MulticopterDynamicsSim::getMotorSpeed() {
+    return motorSpeed_;
+}
+
+/**
  * @brief Get total specific force acting on vehicle, excluding gravity force
  * 
  * @return Eigen::Vector3d Specific force in vehicle-fixed reference frame
@@ -333,7 +342,6 @@ Eigen::Vector3d MulticopterDynamicsSim::getVehicleSpecificForce(void){
     Eigen::Vector3d specificForce = (getThrust(motorSpeed_) + 
                                      attitude_.inverse()*(getDragForce(velocity_) + stochForce_))
                                      / vehicleMass_;
-    
     return specificForce;
 }
 
