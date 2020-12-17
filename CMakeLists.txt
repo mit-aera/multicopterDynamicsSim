@@ -1,9 +1,11 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0)
 project(multicopter_sim)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -w")
+
+find_package(Eigen3 REQUIRED)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -41,6 +43,7 @@ include_directories(
     include
     ${catkin_INCLUDE_DIRS}
 )
+include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
