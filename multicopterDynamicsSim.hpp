@@ -36,6 +36,8 @@ class MulticopterDynamicsSim{
                                   double momentProcessNoiseAutoCorrelation,
                                   double forceProcessNoiseAutoCorrelation);
         void setGravityVector(const Eigen::Vector3d & gravity);
+        void setRandomSeed(const unsigned multicopterSeed,
+                           const unsigned imuSeed);
         void setMotorFrame(const Eigen::Isometry3d & motorFrame, int motorDirection, int motorIndex);
         void setMotorProperties(double thrustCoefficient, double torqueCoefficient, double motorTimeConstant,
                                 double minMotorSpeed, double maxMotorSpeed, double rotationalInertia, int motorIndex);

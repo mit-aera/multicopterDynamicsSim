@@ -143,6 +143,18 @@ void MulticopterDynamicsSim::setGravityVector(const Eigen::Vector3d & gravity){
 }
 
 /**
+ * @brief Set seed of random number generators
+ * 
+ * @param multicopterSeed Seed for multicopter process noise RNG.
+ * @param imuSeed Seed for IMU measurement noise and bias dynamics RNG.
+ */
+void MulticopterDynamicsSim::setRandomSeed(const unsigned multicopterSeed,
+                                           const unsigned imuSeed){
+    randomNumberGenerator_.seed(multicopterSeed);
+    imu_.setRandomSeed(imuSeed);
+}
+
+/**
  * @brief Set orientation and position for individual motor
  * 
  * @param motorFrame Motor orientation and position with regard to body-fixed reference frame
