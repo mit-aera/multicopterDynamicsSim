@@ -28,6 +28,15 @@ inertialMeasurementSim::inertialMeasurementSim(double accMeasNoiseVariance, doub
 }
 
 /**
+ * @brief Set seed of random number generator
+ * 
+ * @param imuSeed Seed for IMU measurement noise and bias dynamics RNG.
+ */
+void inertialMeasurementSim::setRandomSeed(const unsigned imuSeed){
+    randomNumberGenerator_.seed(imuSeed);
+}
+
+/**
  * @brief Set bias properties
  * 
  * @param accBias Accelerometer bias value
@@ -42,6 +51,17 @@ void inertialMeasurementSim::setBias(const Eigen::Vector3d & accBias, const Eige
     gyroBias_ = gyroBias;
     accBiasProcessNoiseAutoCorrelation_ = accBiasProcessNoiseAutoCorrelation;
     gyroBiasProcessNoiseAutoCorrelation_ = gyroBiasProcessNoiseAutoCorrelation;
+}
+
+/**
+ * @brief Get bias values
+ * 
+ * @param accBias Accelerometer bias value
+ * @param gyroBias Gyroscope bias value
+ */
+void inertialMeasurementSim::getBias(Eigen::Vector3d & accBias, Eigen::Vector3d & gyroBias){
+    accBias = accBias_;
+    gyroBias = gyroBias_;
 }
 
 /**
