@@ -4,7 +4,7 @@
  * @brief Inertial measurement unit (IMU) simulator class implementation
  * 
  */
-#include "inertialMeasurementSim.hpp"
+#include "multicopter_sim/inertialMeasurementSim.hpp"
 #include <chrono>
 
 /**
