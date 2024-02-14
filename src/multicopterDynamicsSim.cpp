@@ -4,7 +4,7 @@
  * @brief Multicopter dynamics simulator class implementation
  * 
  */
-#include "multicopterDynamicsSim.hpp"
+#include "multicopter_sim/multicopterDynamicsSim.hpp"
 #include <iostream>
 #include <chrono>
 
@@ -48,7 +48,7 @@ const Eigen::Vector3d & gravity
 , motorTimeConstant_(numCopter)
 , maxMotorSpeed_(numCopter)
 , minMotorSpeed_(numCopter)
-, enableStochasticity_(true)
+, enableStochasticity_(false)
 {
     randomNumberGenerator_.seed(std::chrono::system_clock::now().time_since_epoch().count());
 
@@ -72,6 +72,14 @@ const Eigen::Vector3d & gravity
     forceProcessNoiseAutoCorrelation_ = forceProcessNoiseAutoCorrelation;
 
     gravity_ = gravity;
+
+    std::ofstream states_file;
+    states_file.open("states.csv", std::ios::ate);
+    states_file << "index,seq,timestamp,";
+    states_file << "position x,position y,position z,rotation w,rotation x,rotation y,rotation z,";
+    states_file << "velocity x,velocity y,velocity z,ang x,ang y,ang z,";
+    states_file << "motor 1,motor 2,motor 3,motor 4,force x,force y,force z,torque x,torque y,torque z" << std::endl;
+    states_file.close();
 }
 
 /**
@@ -91,7 +99,7 @@ MulticopterDynamicsSim::MulticopterDynamicsSim(int numCopter)
 , motorTimeConstant_(numCopter)
 , maxMotorSpeed_(numCopter)
 , minMotorSpeed_(numCopter)
-, enableStochasticity_(true)
+, enableStochasticity_(false)
 {
     randomNumberGenerator_.seed(std::chrono::system_clock::now().time_since_epoch().count());
 
@@ -473,6 +481,10 @@ void MulticopterDynamicsSim::proceedState_ExplicitEuler(double dt_secs, const st
     Eigen::Vector4d attitudeDer = getAttitudeDerivative(attitude,angularVelocity);
     Eigen::Vector3d angularVelocityDer = getAngularVelocityDerivative(motorSpeed,motorSpeedDer,angularVelocity,stochMoment);
 
+    saveDynamics(position_, attitude_, velocity_, angularVelocity_, motorSpeed_, velocityDer, angularVelocityDer);
+    index_ += 1;
+    time_ += dt_secs;
+
     vectorAffineOp(motorSpeed,motorSpeedDer,motorSpeed_,dt_secs);
     vectorBoundOp(motorSpeed_,motorSpeed_,minMotorSpeed_,maxMotorSpeed_);
     position_ = position + positionDer*dt_secs;
@@ -724,4 +736,28 @@ Eigen::Vector3d MulticopterDynamicsSim::getAngularVelocityDerivative(const std::
 
     return (vehicleInertia_.inverse()*(getControlMoment(motorSpeed,motorAcceleration) + getAeroMoment(angularVelocity) + stochMoment 
                                                        - angularVelocity.cross(angularMomentum)));
+}
+
+void MulticopterDynamicsSim::saveDynamics(
+    const Eigen::Vector3d& position, const Eigen::Quaterniond& attitude,
+    const Eigen::Vector3d& velocity, const Eigen::Vector3d& angularVelocity,
+    const std::vector<double>& motorSpeeds, const Eigen::Vector3d& force,
+    const Eigen::Vector3d& torque) const {
+  std::ofstream states_file;
+  states_file.open("states.csv", std::ios::app);
+  states_file << "0,";
+  states_file << index_ << ",";
+  states_file << time_ << ",";
+  states_file << position(0) << "," << position(1) << "," << position(2) << ",";
+  states_file << attitude.w() << "," << attitude.x() << "," << attitude.y()
+              << "," << attitude.z() << ",";
+  states_file << velocity(0) << "," << velocity(1) << "," << velocity(2) << ",";
+  states_file << angularVelocity(0) << "," << angularVelocity(1) << ","
+              << angularVelocity(2) << ",";
+  states_file << motorSpeeds.at(0) << "," << motorSpeeds.at(1) << ","
+              << motorSpeeds.at(2) << "," << motorSpeeds.at(3) << ",";
+  states_file << force(0) << "," << force(1) << "," << force(2) << ",";
+  states_file << torque(0) << "," << torque(1) << "," << torque(2) << std::endl;
+
+  states_file.close();
 }

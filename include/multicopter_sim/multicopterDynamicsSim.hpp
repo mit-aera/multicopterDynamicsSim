@@ -14,6 +14,7 @@
 #include "inertialMeasurementSim.hpp"
 
 #include <iomanip>
+#include <fstream>
 
 /**
  * @brief Multicopter dynamics simulator class
@@ -67,7 +68,23 @@ class MulticopterDynamicsSim{
         Eigen::Vector3d getVehicleAngularVelocity(void);
         std::vector<double> getMotorSpeed();
 
+        Eigen::Vector3d getThrust(const std::vector<double> & motorSpeed);
+        Eigen::Vector3d getControlMoment(const std::vector<double> & motorSpeed,
+                                         const std::vector<double> & motorAcceleration);
+        Eigen::Vector3d getAeroMoment(const Eigen::Vector3d & angularVelocity);
+        Eigen::Vector3d getDragForce(const Eigen::Vector3d & velocity);
         Eigen::Vector3d getVehicleSpecificForce(void);
+
+        void getMotorSpeedDerivative(std::vector<double> & motorSpeedDer,
+                                     const std::vector<double> & motorSpeed,
+                                     const std::vector<double> & motorSpeedCommand);
+        Eigen::Vector3d getVelocityDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & stochForce,
+                                              const Eigen::Vector3d & velocity, const std::vector<double> & motorSpeed);
+        Eigen::Vector3d getAngularVelocityDerivative(const std::vector<double> & motorSpeed,
+                                                     const std::vector<double>& motorAcceleration,
+                                                     const Eigen::Vector3d & angularVelocity,
+                                                     const Eigen::Vector3d & stochMoment);
+        Eigen::Vector4d getAttitudeDerivative(const Eigen::Quaterniond & attitude, const Eigen::Vector3d & angularVelocity);
 
         void proceedState_ExplicitEuler(double dt_secs, const std::vector<double> & motorSpeedCommand);
         void proceedState_RK4(double dt_secs, const std::vector<double> & motorSpeedCommand);
@@ -154,6 +171,19 @@ class MulticopterDynamicsSim{
         void vectorScalarProd(const std::vector<double> & vec1, std::vector<double> & vec2, double val);
         void vectorBoundOp(const std::vector<double> & vec1, std::vector<double> & vec2,
                            const std::vector<double> &  minvec, const std::vector<double> & maxvec);
+
+        /// State index
+        double index_ = 0;
+        /// Time stamp after integration step
+        double time_ = 0;
+
+        void saveDynamics(const Eigen::Vector3d& position,
+                          const Eigen::Quaterniond& attitude,
+                          const Eigen::Vector3d& velocity,
+                          const Eigen::Vector3d& angularVelocity,
+                          const std::vector<double>& motorSpeeds,
+                          const Eigen::Vector3d& force,
+                          const Eigen::Vector3d& torque) const;
 };
 
 #endif // MULTICOPTERDYNAMICSSIM_H
